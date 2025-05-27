@@ -174,7 +174,7 @@ struct SearchView: View {
 
 struct SettingsView: View {
     @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @ObservedObject private var appSettings = AppSettings.shared
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -189,42 +189,114 @@ struct SettingsView: View {
             }
             .padding(.bottom, 10)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Claude API Key")
-                    .font(.headline)
-                HStack {
-                    Image(systemName: "key.fill")
-                        .foregroundColor(symbolService.claudeAPIKey.isEmpty ? .orange : .secondary)
-                    SecureField("Enter your Anthropic API Key...", text: $symbolService.claudeAPIKey)
-                        .textFieldStyle(.plain)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // API Key Section
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Claude API Key")
+                            .font(.headline)
+                        HStack {
+                            Image(systemName: "key.fill")
+                                .foregroundColor(symbolService.claudeAPIKey.isEmpty ? .orange : .secondary)
+                            SecureField("Enter your Anthropic API Key...", text: $symbolService.claudeAPIKey)
+                                .textFieldStyle(.plain)
+                        }
+                        .padding(8)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        
+                        if symbolService.claudeAPIKey.isEmpty {
+                            Text("An API key is required to suggest symbols.")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                                .padding(.leading, 4)
+                        }
+                        Link("Get an API Key from Anthropic", destination: URL(string: "https://console.anthropic.com/account/keys")!)
+                            .font(.caption)
+                            .padding(.top, 2)
+                    }
+
+                    Divider()
+
+                    // Appearance Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Appearance")
+                            .font(.headline)
+                        
+                        Toggle("Show in Menu Bar", isOn: $appSettings.showInMenuBar)
+                            .padding(.vertical, 4)
+                        
+                        HStack {
+                            Text("Symbol Size:")
+                            Picker("Size", selection: $appSettings.symbolSize) {
+                                ForEach(SymbolSize.allCases) { size in
+                                    Text(size.displayName).tag(size)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                        
+                        Text("If hidden from menu bar, a Dock icon will appear. You may need to re-launch if both are hidden to access settings.")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                    }
+
+                    Divider()
+
+                    // Vegas Mode Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Vegas Mode")
+                                .font(.headline)
+                            Spacer()
+                            Toggle("", isOn: $appSettings.vegasMode)
+                        }
+                        
+                        if appSettings.vegasMode {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Animation Speed:")
+                                    Spacer()
+                                    Text(String(format: "%.1fx", appSettings.vegasAnimationSpeed))
+                                        .foregroundColor(.secondary)
+                                }
+                                Slider(value: $appSettings.vegasAnimationSpeed, in: 0.2...5.0, step: 0.1)
+                                
+                                HStack {
+                                    Text("Color Intensity:")
+                                    Spacer()
+                                    Text(String(format: "%.1f", appSettings.vegasIntensity))
+                                        .foregroundColor(.secondary)
+                                }
+                                Slider(value: $appSettings.vegasIntensity, in: 0.3...2.0, step: 0.1)
+                                
+                                HStack {
+                                    Text("Scale Animation:")
+                                    Spacer()
+                                    Text(String(format: "%.1f", appSettings.vegasScaleIntensity))
+                                        .foregroundColor(.secondary)
+                                }
+                                Slider(value: $appSettings.vegasScaleIntensity, in: 0.1...1.0, step: 0.1)
+                                
+                                HStack {
+                                    Text("Movement:")
+                                    Spacer()
+                                    Text(String(format: "%.0f", appSettings.vegasMovementIntensity))
+                                        .foregroundColor(.secondary)
+                                }
+                                Slider(value: $appSettings.vegasMovementIntensity, in: 1.0...15.0, step: 1.0)
+                                
+                                Toggle("Rotation", isOn: $appSettings.vegasRotationEnabled)
+                                
+                                Button("Randomize All Settings") {
+                                    appSettings.randomizeVegas()
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding(.leading, 12)
+                        }
+                    }
                 }
-                .padding(8)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                
-                if symbolService.claudeAPIKey.isEmpty {
-                    Text("An API key is required to suggest symbols.")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                        .padding(.leading, 4)
-                }
-                Link("Get an API Key from Anthropic", destination: URL(string: "https://console.anthropic.com/account/keys")!)
-                    .font(.caption)
-                    .padding(.top, 2)
             }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Appearance")
-                    .font(.headline)
-                Toggle("Show in Menu Bar", isOn: $appSettings.showInMenuBar)
-                    .padding(.vertical, 4)
-                Text("If hidden, a Dock icon will appear. You may need to re-launch if both are hidden to access settings.")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-            }
-
-            Spacer()
         }
         .padding()
     }
@@ -232,13 +304,14 @@ struct SettingsView: View {
 
 struct SymbolPickerView: View {
     @StateObject private var symbolService = SFSymbolService.shared
+    @ObservedObject private var appSettings = AppSettings.shared
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 HStack {
                     Spacer()
-                    Picker("Rendering Mode", selection: $symbolService.currentRenderingMode) {
+                    Picker("Color", selection: $symbolService.currentRenderingMode) {
                         ForEach(SFSymbolRenderingMode.allCases) { mode in
                             Text(mode.displayName)
                                 .tag(mode)
@@ -246,6 +319,8 @@ struct SymbolPickerView: View {
                     }
                     .pickerStyle(.segmented)
                     .font(.caption2)
+                    .disabled(appSettings.vegasMode)
+                    .opacity(appSettings.vegasMode ? 0.5 : 1.0)
                     Spacer()
                 }
                 .padding(.horizontal)
@@ -260,7 +335,7 @@ struct SymbolPickerView: View {
                         .lineLimit(1)
                 }
                 .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.top, 4)
 
                 if !symbolService.suggestedSymbols.isEmpty {
                     ViewThatFits(in: .horizontal) {
@@ -337,8 +412,13 @@ struct SymbolPickerView: View {
 struct SymbolButton: View {
     let suggestion: SFSymbolSuggestion
     @StateObject private var symbolService = SFSymbolService.shared
+    @ObservedObject private var appSettings = AppSettings.shared
     @State private var isHovered = false
     @State private var justCopied = false
+    @State private var vegasAnimationPhase = 0.0
+    @State private var vegasScale = 1.0
+    @State private var vegasRotation = 0.0
+    @State private var vegasOffset = CGSize.zero
 
     var body: some View {
         VStack(spacing: 4) {
@@ -350,11 +430,27 @@ struct SymbolButton: View {
                     .font(.caption)
                     .foregroundColor(.green)
             } else {
-                Image(systemName: suggestion.name)
-                    .font(.system(size: 20))
-                    .foregroundColor(isHovered ? .white : .primary)
-                    .symbolRenderingMode(symbolRenderingMode)
-                    .frame(width: 32, height: 32)
+                HStack(spacing: 2) {
+                    Image(systemName: suggestion.name)
+                        .font(.system(size: appSettings.symbolSize == .extraLarge ? 16 : 20))
+                        .foregroundColor(appSettings.vegasMode ? vegasColor : (isHovered ? .white : .primary))
+                        .symbolRenderingMode(symbolRenderingMode)
+                        .frame(width: appSettings.symbolSize == .extraLarge ? 24 : 32, height: appSettings.symbolSize == .extraLarge ? 24 : 32)
+                        .scaleEffect(appSettings.vegasMode ? vegasScale : 1.0)
+                        .rotationEffect(.degrees(appSettings.vegasRotationEnabled && appSettings.vegasMode ? vegasRotation : 0))
+                        .offset(appSettings.vegasMode ? vegasOffset : .zero)
+                    
+                    if appSettings.symbolSize == .extraLarge {
+                        Image(systemName: suggestion.name)
+                            .font(.system(size: 16))
+                            .foregroundColor(appSettings.vegasMode ? vegasColor : (isHovered ? .white : .primary))
+                            .symbolRenderingMode(symbolRenderingMode)
+                            .frame(width: 24, height: 24)
+                            .scaleEffect(appSettings.vegasMode ? vegasScale : 1.0)
+                            .rotationEffect(.degrees(appSettings.vegasRotationEnabled && appSettings.vegasMode ? vegasRotation : 0))
+                            .offset(appSettings.vegasMode ? vegasOffset : .zero)
+                    }
+                }
 
                 Text(suggestion.name)
                     .font(.caption2)
@@ -412,9 +508,60 @@ struct SymbolButton: View {
             .padding(8)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
         }
+        .onAppear {
+            if appSettings.vegasMode {
+                startVegasAnimation()
+            }
+        }
+        .onChange(of: appSettings.vegasMode) { _, newValue in
+            if newValue {
+                startVegasAnimation()
+            } else {
+                stopVegasAnimation()
+            }
+        }
+    }
+
+    private var vegasColor: Color {
+        let hue = (vegasAnimationPhase + Double(suggestion.id.hashValue % 360)) / 360.0
+        return Color(hue: hue, saturation: appSettings.vegasIntensity, brightness: 1.0)
+    }
+
+    private func startVegasAnimation() {
+        withAnimation(.linear(duration: 2.0 / appSettings.vegasAnimationSpeed).repeatForever(autoreverses: false)) {
+            vegasAnimationPhase = 360.0
+        }
+        
+        if appSettings.vegasRotationEnabled {
+            withAnimation(.linear(duration: 3.0 / appSettings.vegasAnimationSpeed).repeatForever(autoreverses: false)) {
+                vegasRotation = 360.0
+            }
+        }
+        
+        // Scale animation
+        withAnimation(.easeInOut(duration: 1.0 / appSettings.vegasAnimationSpeed).repeatForever(autoreverses: true)) {
+            vegasScale = 1.0 + appSettings.vegasScaleIntensity
+        }
+        
+        // Movement animation
+        withAnimation(.easeInOut(duration: 1.5 / appSettings.vegasAnimationSpeed).repeatForever(autoreverses: true)) {
+            vegasOffset = CGSize(width: appSettings.vegasMovementIntensity, height: appSettings.vegasMovementIntensity)
+        }
+    }
+    
+    private func stopVegasAnimation() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            vegasAnimationPhase = 0.0
+            vegasScale = 1.0
+            vegasRotation = 0.0
+            vegasOffset = .zero
+        }
     }
 
     private var symbolRenderingMode: SymbolRenderingMode {
+        if appSettings.vegasMode {
+            return .multicolor
+        }
         switch symbolService.currentRenderingMode {
         case .monochrome:
             return .monochrome
