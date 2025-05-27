@@ -6,25 +6,83 @@
 
 import Foundation
 import AppKit
+import Combine
+
+enum SFSymbolRenderingMode: String, CaseIterable, Identifiable {
+    case monochrome, hierarchical, palette, multicolor
+    var id: String { self.rawValue }
+
+    var displayName: String {
+        switch self {
+        case .monochrome: return "Monochrome"
+        case .hierarchical: return "Hierarchical"
+        case .palette: return "Palette"
+        case .multicolor: return "Multicolor"
+        }
+    }
+}
 
 @MainActor
 class SFSymbolService: ObservableObject {
     static let shared = SFSymbolService()
-    
+    private static let userDefaultsAPIKey = "ClaudeAPIKey"
+
     @Published var suggestedSymbols: [SFSymbolSuggestion] = []
     @Published var isProcessing = false
     @Published var lastProcessedText = ""
+    @Published var currentRenderingMode: SFSymbolRenderingMode = .multicolor
+    @Published var invalidSymbolNamesFromClaude: [String] = []
     
-    private let claudeAPIKey = "REDACTED_ANTHROPIC_KEY"
+    @Published var claudeAPIKey: String {
+        didSet {
+            UserDefaults.standard.set(claudeAPIKey, forKey: SFSymbolService.userDefaultsAPIKey)
+            print("[SFSymbolService] API Key updated and saved to UserDefaults.")
+        }
+    }
+    @Published var apiKeyMissingOrInvalid: Bool = false
+
     private let claudeURL = "https://api.anthropic.com/v1/messages"
     
+    private static let nonExistentSymbolPlaceholderTiff: Data? = {
+        let highlyUnlikelySymbolName = "com.sfbuddy.internal.nonexistent-symbol-\(UUID().uuidString)"
+        // TO DO: Investigate why this might be nil.
+        // NSImage(systemSymbolName:) with an invalid name should still return a placeholder image.
+        // Perhaps the `highlyUnlikelySymbolName` itself is problematic, or there's an OS-level issue.
+        // For now, we proceed, but validation relies on this.
+        let image = NSImage(systemSymbolName: highlyUnlikelySymbolName, accessibilityDescription: nil)
+        if image == nil {
+            print("[SFSymbolService] CRITICAL: NSImage(systemSymbolName: \"\(highlyUnlikelySymbolName)\") returned nil. Symbol validation will not work.")
+        }
+        return image?.tiffRepresentation
+    }()
+
     private init() {
-        print("[SFSymbolService] Initialized.")
+        self.claudeAPIKey = UserDefaults.standard.string(forKey: SFSymbolService.userDefaultsAPIKey) ?? ""
+        print("[SFSymbolService] Initialized. Loaded API Key: \(self.claudeAPIKey.isEmpty ? "Not Set" : "Set")")
+        if self.claudeAPIKey.isEmpty {
+            self.apiKeyMissingOrInvalid = true
+        }
+
+        if SFSymbolService.nonExistentSymbolPlaceholderTiff == nil {
+            print("[SFSymbolService] WARNING: Could not generate non-existent symbol placeholder TIFF. Validation may be affected.")
+        }
     }
     
     func processSelectedText() async {
         print("[SFSymbolService] processSelectedText started.")
+        guard !claudeAPIKey.isEmpty else {
+            print("[SFSymbolService] API Key is missing. Aborting.")
+            apiKeyMissingOrInvalid = true
+            suggestedSymbols = []
+            invalidSymbolNamesFromClaude = []
+            lastProcessedText = await getSelectedText()
+            isProcessing = false
+             NotificationCenter.default.post(name: .showSymbolPicker, object: nil)
+            return
+        }
+        apiKeyMissingOrInvalid = false
         isProcessing = true
+        invalidSymbolNamesFromClaude = []
         
         let selectedText = await getSelectedText()
         print("[SFSymbolService] Selected text: '\(selectedText)'")
@@ -39,10 +97,32 @@ class SFSymbolService: ObservableObject {
         await getSFSymbolSuggestions(for: selectedText)
         
         isProcessing = false
-        print("[SFSymbolService] processSelectedText finished. Suggested symbols count: \(suggestedSymbols.count)")
+        print("[SFSymbolService] processSelectedText finished. Suggested symbols count: \(suggestedSymbols.count), Invalid names: \(invalidSymbolNamesFromClaude.count)")
         
         NotificationCenter.default.post(name: .showSymbolPicker, object: nil)
         print("[SFSymbolService] .showSymbolPicker notification posted.")
+    }
+    
+    func searchSymbols(for text: String) async {
+        print("[SFSymbolService] searchSymbols started for: '\(text)'")
+        guard !claudeAPIKey.isEmpty else {
+            print("[SFSymbolService] API Key is missing. Aborting search.")
+            apiKeyMissingOrInvalid = true
+            suggestedSymbols = []
+            invalidSymbolNamesFromClaude = []
+            lastProcessedText = text
+            isProcessing = false
+            return
+        }
+        apiKeyMissingOrInvalid = false
+        isProcessing = true
+        lastProcessedText = text
+        invalidSymbolNamesFromClaude = []
+        
+        await getSFSymbolSuggestions(for: text)
+        
+        isProcessing = false
+        print("[SFSymbolService] searchSymbols finished. Suggested symbols count: \(suggestedSymbols.count), Invalid names: \(invalidSymbolNamesFromClaude.count)")
     }
     
     private func getSelectedText() async -> String {
@@ -68,31 +148,85 @@ class SFSymbolService: ObservableObject {
         
         let selectedText = pasteboard.string(forType: .string) ?? ""
         
-        if selectedText == previousContents, let previous = previousContents {
+        if let previousContents = previousContents {
             pasteboard.clearContents()
-            pasteboard.setString(previous, forType: .string)
-            print("[SFSymbolService] Restored previous clipboard content as it matched selected text.")
-        } else if selectedText != previousContents {
+            pasteboard.setString(previousContents, forType: .string)
         }
         
-        return selectedText
+        return selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     private func getSFSymbolSuggestions(for text: String) async {
         print("[SFSymbolService] getSFSymbolSuggestions for: '\(text)'")
+        var rawSymbolNames: [String] = []
         do {
-            let symbols = try await callClaudeAPI(for: text)
-            print("[SFSymbolService] Claude API success. Raw symbols: \(symbols)")
-            suggestedSymbols = symbols.map { SFSymbolSuggestion(name: $0) }
+            rawSymbolNames = try await callClaudeAPI(for: text)
+            print("[SFSymbolService] Claude API success. Raw symbols: \(rawSymbolNames)")
+            apiKeyMissingOrInvalid = false
+        } catch let error as APIError {
+            print("[SFSymbolService] Claude API error: \(error). Falling back to mock suggestions (or empty).")
+            switch error {
+            case .requestFailed(let reason):
+                if reason.contains("401") || reason.contains("403") || reason.contains("authentication_error") || reason.contains("invalid_request_error") {
+                    apiKeyMissingOrInvalid = true
+                    print("[SFSymbolService] API Key/Config seems invalid or unauthorized. Reason: \(reason)")
+                } else {
+                     apiKeyMissingOrInvalid = false
+                }
+            case .invalidURL, .decodingFailed, .noSuggestions:
+                 apiKeyMissingOrInvalid = false
+            }
+            rawSymbolNames = getMockSuggestions(for: text).map { $0.name }
+            print("[SFSymbolService] Mock suggestions raw names count: \(rawSymbolNames.count)")
         } catch {
-            print("[SFSymbolService] Claude API error: \(error). Falling back to mock suggestions.")
-            suggestedSymbols = getMockSuggestions(for: text)
-            print("[SFSymbolService] Mock suggestions count: \(suggestedSymbols.count)")
+            print("[SFSymbolService] Unexpected error during Claude API call: \(error). Falling back to mock suggestions.")
+            apiKeyMissingOrInvalid = false
+            rawSymbolNames = getMockSuggestions(for: text).map { $0.name }
+            print("[SFSymbolService] Mock suggestions raw names count: \(rawSymbolNames.count)")
         }
+
+
+        var validSuggestions: [SFSymbolSuggestion] = []
+        var invalidNamesAccumulator: [String] = []
+
+        for name in rawSymbolNames {
+            let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedName.isEmpty {
+                continue
+            }
+            if isActuallyValidSFSymbol(trimmedName) {
+                validSuggestions.append(SFSymbolSuggestion(name: trimmedName))
+            } else {
+                print("[SFSymbolService] Invalid or non-existent symbol suggested: \(trimmedName)")
+                invalidNamesAccumulator.append(trimmedName)
+            }
+        }
+        
+        suggestedSymbols = validSuggestions
+        invalidSymbolNamesFromClaude = invalidNamesAccumulator
     }
     
+    private func isActuallyValidSFSymbol(_ name: String) -> Bool {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+
+        guard let imageFromName = NSImage(systemSymbolName: name, accessibilityDescription: nil) else {
+            return false
+        }
+
+        guard let placeholderTiff = SFSymbolService.nonExistentSymbolPlaceholderTiff else {
+            print("[SFSymbolService] WARNING: nonExistentSymbolPlaceholderTiff is nil. Cannot validate symbol '\(name)'. Assuming valid.")
+            return true
+        }
+
+        return imageFromName.tiffRepresentation != placeholderTiff
+    }
+
     private func callClaudeAPI(for text: String) async throws -> [String] {
         print("[SFSymbolService] Calling Claude API...")
+        guard !claudeAPIKey.isEmpty else {
+            print("[SFSymbolService] API Key is missing internally.")
+            throw APIError.requestFailed(reason: "API Key not provided")
+        }
         guard let url = URL(string: claudeURL) else {
             print("[SFSymbolService] Invalid Claude API URL.")
             throw APIError.invalidURL
@@ -101,7 +235,7 @@ class SFSymbolService: ObservableObject {
         let prompt = """
         Given this text: "\(text)"
         
-        Suggest 6-8 relevant SF Symbols that would best represent this concept, action, or meaning. 
+        Suggest 12-16 relevant SF Symbols that would best represent this concept, action, or meaning.
         Return ONLY the symbol names (like "house.fill", "person.circle", "magnifyingglass") separated by commas, no explanations or additional text.
         Focus on symbols that actually exist in Apple's SF Symbols library.
         If the text is about UI elements, suggest symbols commonly used in app interfaces.
@@ -121,97 +255,113 @@ class SFSymbolService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(claudeAPIKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(self.claudeAPIKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
+        print("[SFSymbolService] Claude request being sent (key omitted for log): \(requestBody)")
+        
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        if let httpResponse = response as? HTTPURLResponse {
-            print("[SFSymbolService] Claude API HTTP status: \(httpResponse.statusCode)")
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            var responseBody = String(data: data, encoding: .utf8) ?? "No response body"
+            if let claudeError = try? JSONDecoder().decode(ClaudeErrorResponse.self, from: data) {
+                responseBody = "Claude Error: \(claudeError.error.type) - \(claudeError.error.message)"
+                if claudeError.error.type == "authentication_error" || claudeError.error.type == "invalid_request_error" {
+                     print("[SFSymbolService] Claude API Error (\(claudeError.error.type)): \(claudeError.error.message)")
+                     throw APIError.requestFailed(reason: "\(claudeError.error.type): \(claudeError.error.message)")
+                }
+            }
+            print("[SFSymbolService] Claude API HTTP Error: \(statusCode). Body: \(responseBody)")
+            throw APIError.requestFailed(reason: "HTTP Error: \(statusCode). Body: \(responseBody)")
         }
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("[SFSymbolService] Claude API raw response: \(responseString)")
+        
+        print("[SFSymbolService] Claude response raw data: \(String(data: data, encoding: .utf8) ?? "Undecodable")")
+        
+        do {
+            let result = try JSONDecoder().decode(ClaudeResponse.self, from: data)
+            if let firstContent = result.content.first, firstContent.type == "text" {
+                let symbolNamesString = firstContent.text
+                print("[SFSymbolService] Claude API response text: \(symbolNamesString)")
+                let symbolNames = symbolNamesString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                if symbolNames.isEmpty {
+                     print("[SFSymbolService] Claude API returned no symbol names.")
+                     throw APIError.noSuggestions
+                }
+                return symbolNames
+            } else {
+                print("[SFSymbolService] Claude API: No text content found in response or unexpected format.")
+                throw APIError.decodingFailed(reason: "No text content found")
+            }
+        } catch {
+            print("[SFSymbolService] Claude API decoding error: \(error)")
+            if error is APIError { throw error }
+            else { throw APIError.decodingFailed(reason: error.localizedDescription) }
         }
-        
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let contentArray = json["content"] as? [[String: Any]],
-              let firstContent = contentArray.first,
-              let symbolText = firstContent["text"] as? String else {
-            print("[SFSymbolService] Invalid Claude API JSON response structure.")
-            throw APIError.invalidResponse
-        }
-        
-        print("[SFSymbolService] Claude API parsed text: \(symbolText)")
-        
-        let symbols = symbolText.components(separatedBy: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        
-        return symbols
     }
     
     private func getMockSuggestions(for text: String) -> [SFSymbolSuggestion] {
-        let lowercased = text.lowercased()
-        print("[SFSymbolService] Getting mock suggestions for: '\(lowercased)'")
-        var symbols: [String] = []
-        
-        if lowercased.contains("event") || lowercased.contains("calendar") || lowercased.contains("schedule") {
-            symbols = ["calendar", "calendar.circle", "calendar.badge.plus", "calendar.badge.clock", "clock", "bell"]
-        } else if lowercased.contains("home") || lowercased.contains("house") {
-            symbols = ["house", "house.fill", "house.circle", "house.lodge"]
-        } else if lowercased.contains("user") || lowercased.contains("person") || lowercased.contains("profile") {
-            symbols = ["person", "person.fill", "person.circle", "person.crop.circle"]
-        } else if lowercased.contains("settings") || lowercased.contains("config") {
-            symbols = ["gearshape", "gearshape.fill", "slider.horizontal.3", "wrench.and.screwdriver"]
-        } else if lowercased.contains("search") || lowercased.contains("find") {
-            symbols = ["magnifyingglass", "magnifyingglass.circle", "viewfinder", "binoculars"]
-        } else if lowercased.contains("message") || lowercased.contains("chat") {
-            symbols = ["message", "message.fill", "bubble.left", "bubble.right"]
-        } else if lowercased.contains("photo") || lowercased.contains("image") || lowercased.contains("picture") {
-            symbols = ["photo", "photo.fill", "camera", "camera.fill"]
-        } else {
-            symbols = ["star", "heart", "bell", "bookmark", "tag", "flag"]
-            print("[SFSymbolService] No specific mock match, using generic symbols.")
+        print("[SFSymbolService] Using mock suggestions for '\(text)'.")
+        var mocks = [
+            SFSymbolSuggestion(name: "house.fill"),
+            SFSymbolSuggestion(name: "gearshape.fill"),
+            SFSymbolSuggestion(name: "person.circle.fill"),
+            SFSymbolSuggestion(name: "trash.fill"),
+            SFSymbolSuggestion(name: "doc.text.fill"),
+            SFSymbolSuggestion(name: "mic.fill"),
+            SFSymbolSuggestion(name: "video.fill"),
+            SFSymbolSuggestion(name: "bookmark.fill")
+        ]
+        if text.lowercased().contains("invalid") {
+            mocks.append(SFSymbolSuggestion(name: "non.existent.symbol.test.1"))
+            mocks.append(SFSymbolSuggestion(name: "another.fake.one"))
         }
-        
-        return symbols.map { SFSymbolSuggestion(name: $0) }
+        return mocks
     }
     
     func replaceTextWithSymbol(_ symbolName: String) {
-        print("[SFSymbolService] replaceTextWithSymbol: '\(symbolName)'")
+        print("[SFSymbolService] Copying to pasteboard: \(symbolName)")
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(symbolName, forType: .string)
-        
-        let source = CGEventSource(stateID: .hidSystemState)
-        let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: true)
-        let vDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
-        let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
-        let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: 0x37, keyDown: false)
-        
-        cmdDown?.flags = .maskCommand
-        vDown?.flags = .maskCommand
-        vUp?.flags = .maskCommand
-        
-        cmdDown?.post(tap: .cghidEventTap)
-        vDown?.post(tap: .cghidEventTap)
-        vUp?.post(tap: .cghidEventTap)
-        cmdUp?.post(tap: .cghidEventTap)
+        print("[SFSymbolService] \(symbolName) copied to pasteboard.")
     }
+}
+
+struct ClaudeResponse: Decodable {
+    let content: [ClaudeContentBlock]
+    let model: String
+    let role: String
+    let stop_reason: String
+}
+
+struct ClaudeContentBlock: Decodable {
+    let type: String
+    let text: String
+}
+
+struct ClaudeErrorResponse: Decodable {
+    struct ErrorDetail: Decodable {
+        let type: String
+        let message: String
+    }
+    let error: ErrorDetail
 }
 
 enum APIError: Error {
     case invalidURL
-    case invalidResponse
+    case requestFailed(reason: String)
+    case decodingFailed(reason: String)
+    case noSuggestions
+}
+
+extension Notification.Name {
+    static let showSymbolPicker = Notification.Name("showSymbolPicker")
 }
 
 struct SFSymbolSuggestion: Identifiable {
     let id = UUID()
     let name: String
-}
-
-extension Notification.Name {
-    static let showSymbolPicker = Notification.Name("showSymbolPicker")
 }
