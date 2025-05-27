@@ -176,9 +176,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if window.identifier?.rawValue == "sfBuddyUtilityWindow" {
                 print("[AppDelegate] Utility window already exists, bringing to front.")
                 var frame = window.frame
-                if frame.size.height != 600 { 
+                if frame.size.height != 600 {
                     frame.size.height = 600
-                    window.setFrame(frame, display: true, animate: false) 
+                    window.setFrame(frame, display: true, animate: false)
                 }
                 window.makeKeyAndOrderFront(nil)
                 return

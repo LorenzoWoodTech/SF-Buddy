@@ -44,15 +44,13 @@ class SFSymbolService: ObservableObject {
     private let claudeURL = "https://api.anthropic.com/v1/messages"
     
     private static let nonExistentSymbolPlaceholderTiff: Data? = {
-        let highlyUnlikelySymbolName = "com.sfbuddy.internal.nonexistent-symbol-\(UUID().uuidString)"
-        // TO DO: Investigate why this might be nil.
-        // NSImage(systemSymbolName:) with an invalid name should still return a placeholder image.
-        // Perhaps the `highlyUnlikelySymbolName` itself is problematic, or there's an OS-level issue.
-        // For now, we proceed, but validation relies on this.
-        let image = NSImage(systemSymbolName: highlyUnlikelySymbolName, accessibilityDescription: nil)
+        let nonExistentSymbolName = "com.apple.NonExistentInternalSymbolSFBuddy"
+        let image = NSImage(systemSymbolName: nonExistentSymbolName, accessibilityDescription: nil)
         if image == nil {
-            print("[SFSymbolService] CRITICAL: NSImage(systemSymbolName: \"\(highlyUnlikelySymbolName)\") returned nil. Symbol validation will not work.")
+            print("[SFSymbolService] CRITICAL: NSImage(systemSymbolName: \"\(nonExistentSymbolName)\") returned nil. Symbol validation will not work.")
         }
+        // TO DO: If 'image' is still nil with this simpler name, we might need to explore alternative validation or report this as a potential OS bug.
+        // For now, we are hoping this simpler name is less likely to cause an unexpected nil return from NSImage.
         return image?.tiffRepresentation
     }()
 
