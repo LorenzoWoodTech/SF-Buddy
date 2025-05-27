@@ -43,32 +43,74 @@ class AppSettings: ObservableObject {
         }
     }
     
-    @Published var vegasAnimationSpeed: Double {
+    @Published var vegasAnimationSpeed: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(vegasAnimationSpeed, forKey: AppSettings.userDefaultsVegasAnimationSpeedKey)
             print("[AppSettings] VegasAnimationSpeed setting changed to: \(vegasAnimationSpeed) and saved.")
         }
     }
     
-    @Published var vegasColorCycleSpeed: Double {
+    @Published var vegasColorCycleSpeed: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(vegasColorCycleSpeed, forKey: AppSettings.userDefaultsVegasColorCycleSpeedKey)
             print("[AppSettings] VegasColorCycleSpeed setting changed to: \(vegasColorCycleSpeed) and saved.")
         }
     }
     
-    @Published var vegasIntensity: Double {
+    @Published var vegasIntensity: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(vegasIntensity, forKey: AppSettings.userDefaultsVegasIntensityKey)
             print("[AppSettings] VegasIntensity setting changed to: \(vegasIntensity) and saved.")
         }
     }
     
-    @Published var vegasRotationEnabled: Bool {
+    @Published var vegasRotationEnabled: Bool = true {
         didSet {
             UserDefaults.standard.set(vegasRotationEnabled, forKey: AppSettings.userDefaultsVegasRotationEnabledKey)
             print("[AppSettings] VegasRotationEnabled setting changed to: \(vegasRotationEnabled) and saved.")
         }
+    }
+
+    @Published var vegasRandomnessLevel: Double = 0.5 {
+        didSet {
+            UserDefaults.standard.set(vegasRandomnessLevel, forKey: "VegasRandomnessLevel")
+        }
+    }
+    
+    @Published var vegasScaleIntensity: Double = 0.3 {
+        didSet {
+            UserDefaults.standard.set(vegasScaleIntensity, forKey: "VegasScaleIntensity")
+        }
+    }
+    
+    @Published var vegasMovementIntensity: Double = 5.0 {
+        didSet {
+            UserDefaults.standard.set(vegasMovementIntensity, forKey: "VegasMovementIntensity")
+        }
+    }
+    
+    @Published var vegasChaosMode: Bool = false {
+        didSet {
+            UserDefaults.standard.set(vegasChaosMode, forKey: "VegasChaosMode")
+        }
+    }
+
+    func triggerVegasChaos() {
+        vegasChaosMode.toggle()
+        // Briefly enable chaos mode to trigger randomization in animations
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.vegasChaosMode.toggle()
+        }
+    }
+
+    func randomizeVegas() {
+        vegasAnimationSpeed = Double.random(in: 0.2...5.0)
+        vegasColorCycleSpeed = Double.random(in: 0.2...5.0)
+        vegasIntensity = Double.random(in: 0.3...2.0)
+        vegasRandomnessLevel = Double.random(in: 0.0...1.0)
+        vegasScaleIntensity = Double.random(in: 0.1...1.0)
+        vegasMovementIntensity = Double.random(in: 1.0...15.0)
+        vegasRotationEnabled = Bool.random()
     }
 
     private init() {
@@ -80,7 +122,13 @@ class AppSettings: ObservableObject {
         self.vegasColorCycleSpeed = UserDefaults.standard.object(forKey: AppSettings.userDefaultsVegasColorCycleSpeedKey) as? Double ?? 1.0
         self.vegasIntensity = UserDefaults.standard.object(forKey: AppSettings.userDefaultsVegasIntensityKey) as? Double ?? 1.0
         self.vegasRotationEnabled = UserDefaults.standard.object(forKey: AppSettings.userDefaultsVegasRotationEnabledKey) as? Bool ?? true
-        print("[AppSettings] Initialized. ShowInMenuBar: \(self.showInMenuBar), SymbolCount: \(self.symbolCount), SelectedModel: \(self.selectedModel.displayName), VegasAnimationSpeed: \(self.vegasAnimationSpeed), VegasColorCycleSpeed: \(self.vegasColorCycleSpeed), VegasIntensity: \(self.vegasIntensity), VegasRotationEnabled: \(self.vegasRotationEnabled)")
+        
+        self.vegasRandomnessLevel = UserDefaults.standard.object(forKey: "VegasRandomnessLevel") as? Double ?? 0.5
+        self.vegasScaleIntensity = UserDefaults.standard.object(forKey: "VegasScaleIntensity") as? Double ?? 0.3
+        self.vegasMovementIntensity = UserDefaults.standard.object(forKey: "VegasMovementIntensity") as? Double ?? 5.0
+        self.vegasChaosMode = UserDefaults.standard.object(forKey: "VegasChaosMode") as? Bool ?? false
+        
+        print("[AppSettings] Initialized with Vegas controls")
     }
 }
 

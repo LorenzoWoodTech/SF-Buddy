@@ -105,12 +105,22 @@ struct SearchView: View {
             .padding(.horizontal)
 
             if symbolService.isProcessing {
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Finding SF Symbols...")
+                VStack(spacing: 16) {
+                    HStack(spacing: 4) {
+                        ForEach(0..<5) { index in
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 20))
+                                .foregroundColor(.yellow)
+                                .scaleEffect(1.0 + sin(Date().timeIntervalSince1970 * 3 + Double(index) * 0.5) * 0.3)
+                                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: UUID())
+                        }
+                    }
+                    
+                    Text("Finding magical symbols...")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .opacity(0.7 + sin(Date().timeIntervalSince1970 * 2) * 0.3)
+                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: UUID())
                 }
                 .padding()
             } else if symbolService.apiKeyMissingOrInvalid && !symbolService.claudeAPIKey.isEmpty {
@@ -287,6 +297,7 @@ struct SettingsView: View {
 
 struct SymbolPickerView: View {
     @StateObject private var symbolService = SFSymbolService.shared
+    @StateObject private var appSettings = AppSettings.shared
     @State private var selectedColor: Color = .primary
     @State private var showingStylePopover = false
     @State private var showingColorPopover = false
@@ -386,8 +397,22 @@ struct SymbolPickerView: View {
                             .background(vegasMode ? Color.yellow.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)
-                    .onLongPressGesture {
-                        showingVegasSettingsPopover = true
+                    .contextMenu {
+                        Button("Trigger Chaos") {
+                            appSettings.triggerVegasChaos()
+                        }
+                        
+                        Button("Randomize Settings") {
+                            appSettings.randomizeVegas()
+                        }
+                        
+                        Divider()
+                        
+                        Button(vegasMode ? "Disable Vegas Mode" : "Enable Vegas Mode") {
+                            withAnimation(.bouncy) {
+                                vegasMode.toggle()
+                            }
+                        }
                     }
                     .popover(isPresented: $showingVegasSettingsPopover) {
                         VegasSettingsPopover()
@@ -783,23 +808,33 @@ struct SymbolButton: View {
         let intensity = appSettings.vegasIntensity
         let colorSpeed = 1.5 / appSettings.vegasColorCycleSpeed
         
+        let randomnessFactor = appSettings.vegasRandomnessLevel
+        let scaleRange = appSettings.vegasScaleIntensity
+        let movementRange = appSettings.vegasMovementIntensity
+        
+        let minScale = 1.0 - (0.2 * intensity * randomnessFactor)
+        let maxScale = 1.0 + (0.3 * intensity * randomnessFactor) + scaleRange
+        
         withAnimation(.easeInOut(duration: Double.random(in: baseSpeed...baseSpeed*1.5)).repeatForever(autoreverses: true)) {
-            animationScale = Double.random(in: (1.0 - 0.2 * intensity)...(1.0 + 0.3 * intensity))
+            animationScale = Double.random(in: minScale...maxScale)
         }
         
         if appSettings.vegasRotationEnabled {
-            withAnimation(.linear(duration: Double.random(in: (4.0/intensity)...(6.0/intensity))).repeatForever(autoreverses: false)) {
+            let rotationSpeed = Double.random(in: (4.0/intensity)...(6.0/intensity)) * (1.0 + randomnessFactor)
+            withAnimation(.linear(duration: rotationSpeed).repeatForever(autoreverses: false)) {
                 animationRotation = 360
             }
         } else {
             animationRotation = 0
         }
         
+        let movementIntensity = movementRange * randomnessFactor
         withAnimation(.easeInOut(duration: Double.random(in: baseSpeed...(baseSpeed*2.0))).repeatForever(autoreverses: true)) {
-            animationOffset = Double.random(in: (-5*intensity)...(5*intensity))
+            animationOffset = Double.random(in: (-movementIntensity)...(movementIntensity))
         }
         
-        vegasTimer = Timer.scheduledTimer(withTimeInterval: colorSpeed, repeats: true) { timer in
+        let variableColorSpeed = colorSpeed * (0.5 + randomnessFactor)
+        vegasTimer = Timer.scheduledTimer(withTimeInterval: variableColorSpeed, repeats: true) { timer in
             if !vegasMode {
                 timer.invalidate()
                 return
@@ -884,6 +919,42 @@ struct VegasSettingsPopover: View {
                 }
                 
                 HStack {
+                    Text("Randomness:")
+                        .font(.caption2)
+                    Spacer()
+                    Slider(value: $appSettings.vegasRandomnessLevel, in: 0.0...1.0, step: 0.1)
+                        .frame(width: 80)
+                    Text(String(format: "%.1f", appSettings.vegasRandomnessLevel))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 25)
+                }
+                
+                HStack {
+                    Text("Scale Chaos:")
+                        .font(.caption2)
+                    Spacer()
+                    Slider(value: $appSettings.vegasScaleIntensity, in: 0.1...1.0, step: 0.1)
+                        .frame(width: 80)
+                    Text(String(format: "%.1f", appSettings.vegasScaleIntensity))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 25)
+                }
+                
+                HStack {
+                    Text("Movement:")
+                        .font(.caption2)
+                    Spacer()
+                    Slider(value: $appSettings.vegasMovementIntensity, in: 1.0...15.0, step: 1.0)
+                        .frame(width: 80)
+                    Text(String(format: "%.0f", appSettings.vegasMovementIntensity))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 25)
+                }
+                
+                HStack {
                     Text("Rotation:")
                         .font(.caption2)
                     Spacer()
@@ -892,10 +963,19 @@ struct VegasSettingsPopover: View {
                 }
             }
             
-            Button("Done") {
-                dismiss()
+            HStack {
+                Button("Randomize") {
+                    appSettings.randomizeVegas()
+                }
+                .font(.caption)
+                
+                Spacer()
+                
+                Button("Done") {
+                    dismiss()
+                }
+                .font(.caption)
             }
-            .font(.caption)
             .padding(.top, 4)
         }
         .padding(12)
