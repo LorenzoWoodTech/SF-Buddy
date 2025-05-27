@@ -20,7 +20,7 @@ struct ContentView: View {
                     .frame(minWidth: 380, idealWidth: 400, maxWidth: 450, minHeight: 300, idealHeight: 350, maxHeight: 450)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            .frame(minWidth: 380, idealWidth: 450, maxWidth: 500, minHeight: 400, idealHeight: 520, maxHeight: 650)
+            .frame(minWidth: 380, idealWidth: 450, maxWidth: 500, minHeight: 400, idealHeight: 600, maxHeight: 750)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }

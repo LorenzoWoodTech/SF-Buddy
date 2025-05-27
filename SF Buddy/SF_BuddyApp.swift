@@ -118,9 +118,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 popover = NSPopover()
                 popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
                 popover?.behavior = .transient
-                popover?.contentSize = NSSize(width: 450, height: 520)
+                popover?.contentSize = NSSize(width: 450, height: 600)
             }
-            popover?.contentSize = NSSize(width: 450, height: 520)
+            popover?.contentSize = NSSize(width: 450, height: 600)
 
             popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover?.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
@@ -155,9 +155,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.popover = NSPopover()
             self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
             self.popover?.behavior = .transient
-            self.popover?.contentSize = NSSize(width: 450, height: 520)
+            self.popover?.contentSize = NSSize(width: 450, height: 600)
         }
-        self.popover?.contentSize = NSSize(width: 450, height: 520)
+        self.popover?.contentSize = NSSize(width: 450, height: 600)
 
         if !(self.popover?.isShown ?? false) {
             print("[AppDelegate] handleShowSymbolPicker: Showing popover.")
@@ -175,6 +175,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for window in NSApp.windows {
             if window.identifier?.rawValue == "sfBuddyUtilityWindow" {
                 print("[AppDelegate] Utility window already exists, bringing to front.")
+                var frame = window.frame
+                if frame.size.height != 600 { 
+                    frame.size.height = 600
+                    window.setFrame(frame, display: true, animate: false) 
+                }
                 window.makeKeyAndOrderFront(nil)
                 return
             }
@@ -186,7 +191,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .environmentObject(AppSettings.shared)
         
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 450, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 450, height: 600),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false)
         window.center()
