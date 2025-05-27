@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "Alex-Image-1748329886.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -48,16 +49,19 @@
       "size" : "32x32"
     },
     {
+      "filename" : "Alex-Image-1748329886 3.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
+      "filename" : "Alex-Image-1748329886 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
+      "filename" : "Alex-Image-1748329886 2.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
