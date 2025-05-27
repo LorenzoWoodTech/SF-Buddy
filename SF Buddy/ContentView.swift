@@ -232,41 +232,96 @@ struct SettingsView: View {
 
 struct SymbolPickerView: View {
     @StateObject private var symbolService = SFSymbolService.shared
+    @State private var selectedColor: Color = .primary
+    @State private var showingStylePopover = false
+    @State private var showingColorPopover = false
+    @State private var vegasMode = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                HStack {
+                HStack(spacing: 12) {
                     Spacer()
-                    Picker("Rendering Mode", selection: $symbolService.currentRenderingMode) {
-                        ForEach(SFSymbolRenderingMode.allCases) { mode in
-                            Text(mode.displayName)
-                                .tag(mode)
+                    
+                    Button {
+                        showingStylePopover.toggle()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "circle.grid.2x2")
+                                .font(.caption)
+                            Text("Mode")
+                                .font(.caption)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
                         }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
                     }
-                    .pickerStyle(.segmented)
-                    .font(.caption2)
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingStylePopover) {
+                        RenderingModePopover(
+                            selectedRenderingMode: $symbolService.currentRenderingMode
+                        )
+                    }
+                    
+                    Button {
+                        showingColorPopover.toggle()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(selectedColor)
+                                .frame(width: 14, height: 14)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(.primary.opacity(0.3), lineWidth: 0.5)
+                                )
+                            Text("Color")
+                                .font(.caption)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingColorPopover) {
+                        ColorPickerPopover(
+                            selectedColor: $selectedColor
+                        )
+                    }
+                    
+                    Button {
+                        withAnimation(.bouncy) {
+                            vegasMode.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: vegasMode ? "sparkles" : "sparkles")
+                                .font(.caption)
+                                .foregroundColor(vegasMode ? .yellow : .secondary)
+                            Text("Vegas")
+                                .font(.caption)
+                                .foregroundColor(vegasMode ? .yellow : .primary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(vegasMode ? Color.yellow.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    
                     Spacer()
                 }
                 .padding(.horizontal)
-
-                HStack {
-                    Text("Symbols for:")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Text(symbolService.lastProcessedText)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
 
                 if !symbolService.suggestedSymbols.isEmpty {
                     ViewThatFits(in: .horizontal) {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 70, maximum: 90), spacing: 12), count: 4), spacing: 12) {
                             ForEach(symbolService.suggestedSymbols) { suggestion in
-                                SymbolButton(suggestion: suggestion)
+                                SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode)
                             }
                         }
                         .fixedSize(horizontal: true, vertical: false)
@@ -274,7 +329,7 @@ struct SymbolPickerView: View {
 
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 70, maximum: 90), spacing: 12), count: 3), spacing: 12) {
                             ForEach(symbolService.suggestedSymbols) { suggestion in
-                                SymbolButton(suggestion: suggestion)
+                                SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode)
                             }
                         }
                         .fixedSize(horizontal: true, vertical: false)
@@ -282,7 +337,7 @@ struct SymbolPickerView: View {
 
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 70, maximum: 90), spacing: 12), count: 2), spacing: 12) {
                             ForEach(symbolService.suggestedSymbols) { suggestion in
-                                SymbolButton(suggestion: suggestion)
+                                SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode)
                             }
                         }
                         .fixedSize(horizontal: true, vertical: false)
@@ -301,7 +356,7 @@ struct SymbolPickerView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
-                            Text("Warning: \(symbolService.invalidSymbolNamesFromClaude.count) suggested symbol name(s) might not exist or are invalid:")
+                            Text("Model suggested \(symbolService.invalidSymbolNamesFromClaude.count) invalid symbol name(s):")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }
@@ -334,11 +389,97 @@ struct SymbolPickerView: View {
     }
 }
 
+private struct RenderingModePopover: View {
+    @Binding var selectedRenderingMode: SFSymbolRenderingMode
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Mode")
+                .font(.caption)
+                .fontWeight(.medium)
+            
+            Picker("Mode", selection: $selectedRenderingMode) {
+                ForEach(SFSymbolRenderingMode.allCases) { mode in
+                    Text(mode.displayName)
+                        .tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .controlSize(.mini)
+        }
+        .padding(8)
+        .frame(width: 180)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct ColorPickerPopover: View {
+    @Binding var selectedColor: Color
+    
+    private let systemColors: [(String, Color)] = [
+        ("Red", .red),
+        ("Orange", .orange),
+        ("Yellow", .yellow),
+        ("Green", .green),
+        ("Mint", .mint),
+        ("Teal", .teal),
+        ("Cyan", .cyan),
+        ("Blue", .blue),
+        ("Indigo", .indigo),
+        ("Purple", .purple),
+        ("Pink", .pink),
+        ("Brown", .brown),
+        ("Gray", .gray),
+        ("Primary", .primary),
+        ("Secondary", .secondary),
+        ("Accent", .accentColor)
+    ]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Color")
+                .font(.caption)
+                .fontWeight(.medium)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(20), spacing: 3), count: 8), spacing: 3) {
+                ForEach(systemColors, id: \.0) { colorName, color in
+                    Button {
+                        selectedColor = color
+                    } label: {
+                        Circle()
+                            .fill(color)
+                            .frame(width: 16, height: 16)
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(selectedColor == color ? .primary : Color.clear, lineWidth: 1.5)
+                            )
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(.primary.opacity(0.2), lineWidth: 0.5)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help(colorName)
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: 180)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
 struct SymbolButton: View {
     let suggestion: SFSymbolSuggestion
+    let symbolColor: Color
+    let vegasMode: Bool
     @StateObject private var symbolService = SFSymbolService.shared
     @State private var isHovered = false
     @State private var justCopied = false
+    @State private var animationOffset: CGFloat = 0
+    @State private var animationRotation: Double = 0
+    @State private var animationScale: CGFloat = 1
+    @State private var randomColor: Color = .primary
 
     var body: some View {
         VStack(spacing: 4) {
@@ -352,9 +493,14 @@ struct SymbolButton: View {
             } else {
                 Image(systemName: suggestion.name)
                     .font(.system(size: 20))
-                    .foregroundColor(isHovered ? .white : .primary)
+                    .foregroundColor(isHovered ? .white : (vegasMode ? randomColor : symbolColor))
                     .symbolRenderingMode(symbolRenderingMode)
                     .frame(width: 32, height: 32)
+                    .scaleEffect(vegasMode ? animationScale : 1)
+                    .rotationEffect(.degrees(vegasMode ? animationRotation : 0))
+                    .offset(x: vegasMode ? animationOffset : 0)
+                    .symbolEffect(.bounce, isActive: vegasMode)
+                    .symbolEffect(.pulse, isActive: vegasMode)
 
                 Text(suggestion.name)
                     .font(.caption2)
@@ -368,6 +514,7 @@ struct SymbolButton: View {
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isHovered && !justCopied ? Color.accentColor : Color.clear)
+                .opacity(vegasMode ? 0.1 : 1)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
@@ -404,13 +551,64 @@ struct SymbolButton: View {
             VStack(spacing: 2) {
                 Image(systemName: suggestion.name)
                     .font(.system(size: 16))
-                    .foregroundColor(.primary)
+                    .foregroundColor(vegasMode ? randomColor : symbolColor)
                 Text(suggestion.name)
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
             .padding(8)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.regularMaterial)
+            }
+        }
+        .onAppear {
+            if vegasMode {
+                startVegasAnimations()
+            }
+        }
+        .onChange(of: vegasMode) { oldValue, newValue in
+            if newValue {
+                startVegasAnimations()
+            } else {
+                stopVegasAnimations()
+            }
+        }
+    }
+    
+    private func startVegasAnimations() {
+        let colors: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .pink, .cyan]
+        randomColor = colors.randomElement() ?? .primary
+        
+        withAnimation(.easeInOut(duration: Double.random(in: 1.5...3.0)).repeatForever(autoreverses: true)) {
+            animationScale = Double.random(in: 0.8...1.3)
+        }
+        
+        withAnimation(.linear(duration: Double.random(in: 3.0...6.0)).repeatForever(autoreverses: false)) {
+            animationRotation = 360
+        }
+        
+        withAnimation(.easeInOut(duration: Double.random(in: 2.0...4.0)).repeatForever(autoreverses: true)) {
+            animationOffset = Double.random(in: -5...5)
+        }
+        
+        Timer.scheduledTimer(withTimeInterval: Double.random(in: 0.5...2.0), repeats: true) { timer in
+            if !vegasMode {
+                timer.invalidate()
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.3)) {
+                randomColor = colors.randomElement() ?? .primary
+            }
+        }
+    }
+    
+    private func stopVegasAnimations() {
+        withAnimation(.easeOut(duration: 0.5)) {
+            animationScale = 1
+            animationRotation = 0
+            animationOffset = 0
+            randomColor = symbolColor
         }
     }
 
