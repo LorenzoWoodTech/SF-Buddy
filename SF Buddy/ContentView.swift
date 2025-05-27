@@ -20,7 +20,7 @@ struct ContentView: View {
                     .frame(minWidth: 380, idealWidth: 400, maxWidth: 450, minHeight: 300, idealHeight: 350, maxHeight: 450)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            .frame(minWidth: 380, idealWidth: 450, maxWidth: 500, minHeight: 400, idealHeight: 600, maxHeight: 750)
+            .frame(minWidth: 320, idealWidth: 380, maxWidth: 420, minHeight: 400, idealHeight: 600, maxHeight: 750)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -235,7 +235,9 @@ struct SymbolPickerView: View {
     @State private var selectedColor: Color = .primary
     @State private var showingStylePopover = false
     @State private var showingColorPopover = false
+    @State private var showingGridSizePopover = false
     @State private var vegasMode = false
+    @State private var gridSize: GridSize = .medium
 
     var body: some View {
         ScrollView {
@@ -244,12 +246,33 @@ struct SymbolPickerView: View {
                     Spacer()
                     
                     Button {
+                        showingGridSizePopover.toggle()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: gridSize.iconName)
+                                .font(.caption)
+                            Text("Grid")
+                                .font(.caption)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingGridSizePopover) {
+                        GridSizePopover(selectedGridSize: $gridSize)
+                    }
+                    
+                    Button {
                         showingStylePopover.toggle()
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "circle.grid.2x2")
                                 .font(.caption)
-                            Text("Mode")
+                            Text("Render")
                                 .font(.caption)
                             Image(systemName: "chevron.down")
                                 .font(.caption2)
@@ -277,7 +300,7 @@ struct SymbolPickerView: View {
                                     Circle()
                                         .strokeBorder(.primary.opacity(0.3), lineWidth: 0.5)
                                 )
-                            Text("Color")
+                            Text("Colors")
                                 .font(.caption)
                             Image(systemName: "chevron.down")
                                 .font(.caption2)
@@ -299,17 +322,12 @@ struct SymbolPickerView: View {
                             vegasMode.toggle()
                         }
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: vegasMode ? "sparkles" : "sparkles")
-                                .font(.caption)
-                                .foregroundColor(vegasMode ? .yellow : .secondary)
-                            Text("Vegas")
-                                .font(.caption)
-                                .foregroundColor(vegasMode ? .yellow : .primary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(vegasMode ? Color.yellow.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+                        Image(systemName: vegasMode ? "sparkles" : "sparkles")
+                            .font(.caption)
+                            .foregroundColor(vegasMode ? .yellow : .secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(vegasMode ? Color.yellow.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.plain)
                     
@@ -318,31 +336,12 @@ struct SymbolPickerView: View {
                 .padding(.horizontal)
 
                 if !symbolService.suggestedSymbols.isEmpty {
-                    ViewThatFits(in: .horizontal) {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 70, maximum: 90), spacing: 12), count: 4), spacing: 12) {
-                            ForEach(symbolService.suggestedSymbols) { suggestion in
-                                SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode)
-                            }
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: gridSize.buttonSize.min, maximum: gridSize.buttonSize.max), spacing: 10), count: gridSize.columnCount), spacing: 10) {
+                        ForEach(symbolService.suggestedSymbols) { suggestion in
+                            SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode, gridSize: gridSize)
                         }
-                        .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 16)
-
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 70, maximum: 90), spacing: 12), count: 3), spacing: 12) {
-                            ForEach(symbolService.suggestedSymbols) { suggestion in
-                                SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode)
-                            }
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 16)
-
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 70, maximum: 90), spacing: 12), count: 2), spacing: 12) {
-                            ForEach(symbolService.suggestedSymbols) { suggestion in
-                                SymbolButton(suggestion: suggestion, symbolColor: selectedColor, vegasMode: vegasMode)
-                            }
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 16)
                     }
+                    .padding(.horizontal, 16)
                 } else if symbolService.suggestedSymbols.isEmpty && !symbolService.invalidSymbolNamesFromClaude.isEmpty {
                     Text("All suggested symbols appear to be invalid or non-existent.")
                         .font(.caption)
@@ -370,52 +369,159 @@ struct SymbolPickerView: View {
                     .padding(.top, 4)
                 }
 
-                HStack {
-                    Spacer()
-                    Button("Clear Results") {
-                        symbolService.suggestedSymbols = []
-                        symbolService.lastProcessedText = ""
-                        symbolService.invalidSymbolNamesFromClaude = []
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal)
             }
             .padding(.vertical)
         }
     }
 }
 
-private struct RenderingModePopover: View {
-    @Binding var selectedRenderingMode: SFSymbolRenderingMode
+enum GridSize: String, CaseIterable, Identifiable {
+    case small = "small"
+    case medium = "medium"
+    case large = "large"
+    case extraLarge = "extraLarge"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
+        case .extraLarge: return "Extra Large"
+        }
+    }
+    
+    var columnCount: Int {
+        switch self {
+        case .small: return 8
+        case .medium: return 4
+        case .large: return 3
+        case .extraLarge: return 2
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .small: return "grid"
+        case .medium: return "square.grid.2x2"
+        case .large: return "rectangle.grid.1x2"
+        case .extraLarge: return "square"
+        }
+    }
+    
+    var symbolSize: CGFloat {
+        switch self {
+        case .small: return 12
+        case .medium: return 24
+        case .large: return 32
+        case .extraLarge: return 40
+        }
+    }
+    
+    var buttonSize: (min: CGFloat, max: CGFloat, height: CGFloat) {
+        switch self {
+        case .small: return (40, 50, 50)
+        case .medium: return (70, 85, 75)
+        case .large: return (90, 110, 90)
+        case .extraLarge: return (120, 140, 110)
+        }
+    }
+    
+    var showNames: Bool {
+        switch self {
+        case .small: return false
+        default: return true
+        }
+    }
+}
+
+private struct GridSizePopover: View {
+    @Binding var selectedGridSize: GridSize
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Mode")
+            Text("Grid Size")
                 .font(.caption)
                 .fontWeight(.medium)
             
-            Picker("Mode", selection: $selectedRenderingMode) {
-                ForEach(SFSymbolRenderingMode.allCases) { mode in
-                    Text(mode.displayName)
-                        .tag(mode)
+            VStack(spacing: 4) {
+                ForEach(GridSize.allCases) { size in
+                    Button {
+                        selectedGridSize = size
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: size.iconName)
+                                .font(.caption)
+                            Text(size.displayName)
+                                .font(.caption)
+                            Spacer()
+                            if selectedGridSize == size {
+                                Image(systemName: "checkmark")
+                                    .font(.caption2)
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(selectedGridSize == size ? Color.accentColor.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .pickerStyle(.segmented)
-            .controlSize(.mini)
         }
         .padding(8)
-        .frame(width: 180)
+        .frame(minWidth: 140)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+private struct RenderingModePopover: View {
+    @Binding var selectedRenderingMode: SFSymbolRenderingMode
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Render Mode")
+                .font(.caption)
+                .fontWeight(.medium)
+            
+            VStack(spacing: 4) {
+                ForEach(SFSymbolRenderingMode.allCases) { mode in
+                    Button {
+                        selectedRenderingMode = mode
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(mode.displayName)
+                                .font(.caption)
+                            Spacer()
+                            if selectedRenderingMode == mode {
+                                Image(systemName: "checkmark")
+                                    .font(.caption2)
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(selectedRenderingMode == mode ? Color.accentColor.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(8)
+        .frame(minWidth: 140)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
     }
 }
 
 private struct ColorPickerPopover: View {
     @Binding var selectedColor: Color
-    
+    @Environment(\.dismiss) private var dismiss
+
     private let systemColors: [(String, Color)] = [
         ("Red", .red),
         ("Orange", .orange),
@@ -437,14 +543,11 @@ private struct ColorPickerPopover: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Color")
-                .font(.caption)
-                .fontWeight(.medium)
-            
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(20), spacing: 3), count: 8), spacing: 3) {
                 ForEach(systemColors, id: \.0) { colorName, color in
                     Button {
                         selectedColor = color
+                        dismiss()
                     } label: {
                         Circle()
                             .fill(color)
@@ -463,9 +566,9 @@ private struct ColorPickerPopover: View {
                 }
             }
         }
-        .padding(8)
-        .frame(width: 180)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .padding(12)
+        .frame(width: 200)
+        .background(RoundedRectangle(cornerRadius: 6).fill(.regularMaterial))
     }
 }
 
@@ -473,6 +576,7 @@ struct SymbolButton: View {
     let suggestion: SFSymbolSuggestion
     let symbolColor: Color
     let vegasMode: Bool
+    let gridSize: GridSize
     @StateObject private var symbolService = SFSymbolService.shared
     @State private var isHovered = false
     @State private var justCopied = false
@@ -485,32 +589,34 @@ struct SymbolButton: View {
         VStack(spacing: 4) {
             if justCopied {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 22))
+                    .font(.system(size: gridSize.symbolSize + 6))
                     .foregroundColor(.green)
                 Text("Copied!")
                     .font(.caption)
                     .foregroundColor(.green)
             } else {
                 Image(systemName: suggestion.name)
-                    .font(.system(size: 20))
+                    .font(.system(size: gridSize.symbolSize))
                     .foregroundColor(isHovered ? .white : (vegasMode ? randomColor : symbolColor))
                     .symbolRenderingMode(symbolRenderingMode)
-                    .frame(width: 32, height: 32)
+                    .frame(width: gridSize.symbolSize + 12, height: gridSize.symbolSize + 12)
                     .scaleEffect(vegasMode ? animationScale : 1)
                     .rotationEffect(.degrees(vegasMode ? animationRotation : 0))
                     .offset(x: vegasMode ? animationOffset : 0)
                     .symbolEffect(.bounce, isActive: vegasMode)
                     .symbolEffect(.pulse, isActive: vegasMode)
 
-                Text(suggestion.name)
-                    .font(.caption2)
-                    .foregroundColor(isHovered ? .white : .secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                if gridSize.showNames {
+                    Text(suggestion.name)
+                        .font(.caption2)
+                        .foregroundColor(isHovered ? .white : .secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
-        .frame(minWidth: 70, maxWidth: 90, minHeight: 70, maxHeight: 80)
+        .frame(minWidth: gridSize.buttonSize.min, maxWidth: gridSize.buttonSize.max, minHeight: gridSize.buttonSize.height, maxHeight: gridSize.buttonSize.height)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isHovered && !justCopied ? Color.accentColor : Color.clear)
