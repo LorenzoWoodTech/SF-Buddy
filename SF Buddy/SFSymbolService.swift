@@ -230,17 +230,24 @@ class SFSymbolService: ObservableObject {
             throw APIError.invalidURL
         }
         
+        let selectedModel = AppSettings.shared.selectedModel
+        let symbolCount = AppSettings.shared.symbolCount
+        
+        let relevantSymbols = SFSymbolDatabase.getRelevantSymbolsForPrompt(searchTerm: text)
+        
         let prompt = """
         Given this text: "\(text)"
         
-        Suggest 12-16 relevant SF Symbols that would best represent this concept, action, or meaning.
-        Return ONLY the symbol names (like "house.fill", "person.circle", "magnifyingglass") separated by commas, no explanations or additional text.
-        Focus on symbols that actually exist in Apple's SF Symbols library.
-        If the text is about UI elements, suggest symbols commonly used in app interfaces.
+        Choose \(symbolCount) most relevant SF Symbols from this list of available symbols:
+        \(relevantSymbols)
+        
+        Return ONLY the symbol names separated by commas, no explanations or additional text.
+        Select symbols that best represent the concept, action, or meaning of the input text.
+        You MUST only choose from the provided list above - do not create or suggest symbols not in the list.
         """
         
         let requestBody: [String: Any] = [
-            "model": "claude-3-5-sonnet-20240620",
+            "model": selectedModel.rawValue,
             "max_tokens": 200,
             "messages": [
                 [
@@ -258,7 +265,7 @@ class SFSymbolService: ObservableObject {
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
-        print("[SFSymbolService] Claude request being sent (key omitted for log): \(requestBody)")
+        print("[SFSymbolService] Claude request being sent with model: \(selectedModel.displayName) and symbol database (key omitted for log)")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
