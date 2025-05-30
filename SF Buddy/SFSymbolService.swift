@@ -235,7 +235,7 @@ class SFSymbolService: ObservableObject {
         
         Suggest \(symbolCount) relevant SF Symbols that would best represent this concept, action, or meaning.
         Return ONLY the symbol names (like "house.fill", "person.circle", "magnifyingglass") separated by commas, no explanations or additional text.
-        Focus on symbols that actually exist in Apple's SF Symbols library.
+        Focus on symbols that actually exist in Apple's SF Symbols library. Order them with the most relevant first to the least relevant. 
         If the text is about UI elements, suggest symbols commonly used in app interfaces.
         Be creative but accurate - only suggest real SF Symbol names.
         """
