@@ -4,7 +4,11 @@
 //
 
 import Foundation
+#if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 import Combine
 
 enum SFSymbolRenderingMode: String, CaseIterable, Identifiable {
@@ -42,6 +46,7 @@ class SFSymbolService: ObservableObject {
 
     private let claudeURL = "https://api.anthropic.com/v1/messages"
     
+    #if os(macOS)
     private static let nonExistentSymbolPlaceholderTiff: Data? = {
         let nonExistentSymbolName = "com.apple.NonExistentInternalSymbolSFBuddy"
         let image = NSImage(systemSymbolName: nonExistentSymbolName, accessibilityDescription: nil)
@@ -50,6 +55,7 @@ class SFSymbolService: ObservableObject {
         }
         return image?.tiffRepresentation
     }()
+    #endif
 
     private init() {
         self.claudeAPIKey = UserDefaults.standard.string(forKey: SFSymbolService.userDefaultsAPIKey) ?? ""
@@ -58,12 +64,15 @@ class SFSymbolService: ObservableObject {
             self.apiKeyMissingOrInvalid = true
         }
 
+        #if os(macOS)
         if SFSymbolService.nonExistentSymbolPlaceholderTiff == nil {
             print("[SFSymbolService] WARNING: Could not generate non-existent symbol placeholder TIFF. Validation may be affected.")
         }
+        #endif
     }
     
     func processSelectedText() async {
+        #if os(macOS)
         print("[SFSymbolService] processSelectedText started.")
         guard !claudeAPIKey.isEmpty else {
             print("[SFSymbolService] API Key is missing. Aborting.")
@@ -96,12 +105,16 @@ class SFSymbolService: ObservableObject {
         
         NotificationCenter.default.post(name: .showSymbolPicker, object: nil)
         print("[SFSymbolService] .showSymbolPicker notification posted.")
+        #else
+        print("[SFSymbolService] processSelectedText not available on iOS")
+        #endif
     }
     
-    func searchSymbols(for text: String) async {
-        print("[SFSymbolService] searchSymbols started for: '\(text)'")
+    /// Process text for AI symbol suggestions (available on all platforms)
+    func processText(_ text: String) async {
+        print("[SFSymbolService] processText started for: '\(text)'")
         guard !claudeAPIKey.isEmpty else {
-            print("[SFSymbolService] API Key is missing. Aborting search.")
+            print("[SFSymbolService] API Key is missing. Aborting.")
             apiKeyMissingOrInvalid = true
             suggestedSymbols = []
             invalidSymbolNamesFromClaude = []
@@ -117,9 +130,14 @@ class SFSymbolService: ObservableObject {
         await getSFSymbolSuggestions(for: text)
         
         isProcessing = false
-        print("[SFSymbolService] searchSymbols finished. Suggested symbols count: \(suggestedSymbols.count), Invalid names: \(invalidSymbolNamesFromClaude.count)")
+        print("[SFSymbolService] processText finished. Suggested symbols count: \(suggestedSymbols.count), Invalid names: \(invalidSymbolNamesFromClaude.count)")
     }
     
+    func searchSymbols(for text: String) async {
+        await processText(text)
+    }
+    
+    #if os(macOS)
     private func getSelectedText() async -> String {
         let pasteboard = NSPasteboard.general
         let previousContents = pasteboard.string(forType: .string)
@@ -150,6 +168,7 @@ class SFSymbolService: ObservableObject {
         
         return selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    #endif
     
     private func getSFSymbolSuggestions(for text: String) async {
         print("[SFSymbolService] getSFSymbolSuggestions for: '\(text)'")
@@ -204,6 +223,7 @@ class SFSymbolService: ObservableObject {
     private func isActuallyValidSFSymbol(_ name: String) -> Bool {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
 
+        #if os(macOS)
         guard let imageFromName = NSImage(systemSymbolName: name, accessibilityDescription: nil) else {
             return false
         }
@@ -214,6 +234,10 @@ class SFSymbolService: ObservableObject {
         }
 
         return imageFromName.tiffRepresentation != placeholderTiff
+        #else
+        // On iOS, use UIImage for validation
+        return UIImage(systemName: name) != nil
+        #endif
     }
 
     private func callClaudeAPI(for text: String) async throws -> [String] {
@@ -321,11 +345,17 @@ class SFSymbolService: ObservableObject {
     }
     
     func replaceTextWithSymbol(_ symbolName: String) {
+        #if os(macOS)
         print("[SFSymbolService] Copying to pasteboard: \(symbolName)")
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(symbolName, forType: .string)
         print("[SFSymbolService] \(symbolName) copied to pasteboard.")
+        #else
+        print("[SFSymbolService] Copying to pasteboard: \(symbolName)")
+        UIPasteboard.general.string = symbolName
+        print("[SFSymbolService] \(symbolName) copied to pasteboard.")
+        #endif
     }
 }
 

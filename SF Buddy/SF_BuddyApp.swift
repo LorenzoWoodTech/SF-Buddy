@@ -6,33 +6,64 @@
 //
 
 import SwiftUI
+#if os(macOS)
 import AppKit
 import Carbon
 import Combine
+#endif
 
 @main
 struct SF_BuddyApp: App {
+    #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
+    
+    let persistenceController = PersistenceController.shared
 
     var body: some Scene {
+        #if os(macOS)
+        // Main app window for macOS - This is now the primary interface
+        WindowGroup("SF Buddy") {
+            MainContentView()
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environmentObject(SFSymbolService.shared)
+                .environmentObject(AppSettings.shared)
+        }
+        .commands {
+            SidebarCommands()
+        }
+        
         Settings {
             ContentView()
                 .environmentObject(SFSymbolService.shared)
                 .environmentObject(AppSettings.shared)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
+        #else
+        // iOS/iPadOS: Standard app with main content
+        WindowGroup {
+            MainContentView()
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .environmentObject(SFSymbolService.shared)
+                .environmentObject(AppSettings.shared)
+        }
+        #endif
     }
 }
 
+#if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var popover: NSPopover?
     var keyboardShortcutManager: KeyboardShortcutManager?
     private var appSettings = AppSettings.shared
-    private var cancellables = Set<AnyCancellable>()
+    private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[AppDelegate] applicationDidFinishLaunching started.")
+        
+        NSApplication.shared.setActivationPolicy(.regular)
+        print("[AppDelegate] Activation policy set to .regular for main app.")
         
         checkAccessibilityPermissions()
         print("[AppDelegate] Accessibility check done.")
@@ -49,14 +80,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyboardShortcutManager = KeyboardShortcutManager()
         keyboardShortcutManager?.setupGlobalShortcut()
         print("[AppDelegate] Keyboard shortcut manager setup.")
-        
-        if appSettings.showInMenuBar {
-            NSApplication.shared.setActivationPolicy(.accessory)
-            print("[AppDelegate] Activation policy set to .accessory.")
-        } else {
-            NSApplication.shared.setActivationPolicy(.regular)
-            print("[AppDelegate] Activation policy set to .regular (menu bar icon hidden).")
-        }
 
         NotificationCenter.default.addObserver(self, selector: #selector(handleShowSymbolPicker), name: .showSymbolPicker, object: nil)
         print("[AppDelegate] Notification observer added for showSymbolPicker.")
@@ -76,21 +99,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     button.target = self
                     print("[AppDelegate] Status item button configured.")
                 }
-                if NSApp.activationPolicy() != .accessory {
-                    NSApp.setActivationPolicy(.accessory)
-                    print("[AppDelegate] Set activation policy to .accessory because menu bar icon is now visible.")
-                }
             }
         } else {
             if let item = statusItem {
                 print("[AppDelegate] Removing status item as per settings.")
                 NSStatusBar.system.removeStatusItem(item)
                 statusItem = nil
-                if NSApp.activationPolicy() != .regular {
-                    NSApp.setActivationPolicy(.regular)
-                    print("[AppDelegate] Set activation policy to .regular because menu bar icon is hidden.")
-                    NSApp.activate(ignoringOtherApps: true)
-                }
             }
         }
     }
@@ -101,10 +115,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         guard let button = statusItem?.button else {
-            print("[AppDelegate] togglePopover: Status item button not found (perhaps it's hidden by settings?).")
-            if !appSettings.showInMenuBar {
-                openUtilityWindow()
-            }
+            print("[AppDelegate] togglePopover: Status item button not found.")
             return
         }
         
@@ -144,81 +155,41 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("[AppDelegate] handleShowSymbolPicker called via keyboard shortcut.")
         NSApp.activate(ignoringOtherApps: true)
         
-        guard self.appSettings.showInMenuBar, let button = self.statusItem?.button else {
-            print("[AppDelegate] handleShowSymbolPicker: Menu bar icon is hidden or not available. Opening utility window instead.")
-            openUtilityWindow()
-            return
-        }
-            
-        if self.popover == nil {
-            print("[AppDelegate] handleShowSymbolPicker: Creating new popover.")
-            self.popover = NSPopover()
-            self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
-            self.popover?.behavior = .transient
+        if self.appSettings.showInMenuBar, let button = self.statusItem?.button {
+            if self.popover == nil {
+                print("[AppDelegate] handleShowSymbolPicker: Creating new popover.")
+                self.popover = NSPopover()
+                self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
+                self.popover?.behavior = .transient
+                self.popover?.contentSize = NSSize(width: 450, height: 600)
+            }
             self.popover?.contentSize = NSSize(width: 450, height: 600)
-        }
-        self.popover?.contentSize = NSSize(width: 450, height: 600)
 
-        if !(self.popover?.isShown ?? false) {
-            print("[AppDelegate] handleShowSymbolPicker: Showing popover.")
-            self.popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            if !(self.popover?.isShown ?? false) {
+                print("[AppDelegate] handleShowSymbolPicker: Showing popover.")
+                self.popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            }
+            self.popover?.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
         } else {
-            print("[AppDelegate] handleShowSymbolPicker: Popover already shown. Ensuring it's key and front.")
-        }
-        self.popover?.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
-        print("[AppDelegate] handleShowSymbolPicker: Popover brought to front.")
-    }
-
-    @MainActor
-    private func openUtilityWindow() {
-        print("[AppDelegate] openUtilityWindow called.")
-        for window in NSApp.windows {
-            if window.identifier?.rawValue == "sfBuddyUtilityWindow" {
-                print("[AppDelegate] Utility window already exists, bringing to front.")
-                var frame = window.frame
-                if frame.size.height != 600 {
-                    frame.size.height = 600
-                    window.setFrame(frame, display: true, animate: false)
+            // Show main app window
+            for window in NSApp.windows {
+                if window.title == "SF Buddy" {
+                    window.makeKeyAndOrderFront(nil)
+                    return
                 }
-                window.makeKeyAndOrderFront(nil)
-                return
             }
         }
-
-        print("[AppDelegate] Creating new utility window.")
-        let contentView = ContentView()
-            .environmentObject(SFSymbolService.shared)
-            .environmentObject(AppSettings.shared)
-        
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 450, height: 600),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered, defer: false)
-        window.center()
-        window.setFrameAutosaveName("SFBuddyUtilityWindow")
-        window.contentView = NSHostingView(rootView: contentView)
-        window.title = "SF Buddy"
-        window.identifier = NSUserInterfaceItemIdentifier("sfBuddyUtilityWindow")
-        window.makeKeyAndOrderFront(nil)
-        
-        if NSApp.activationPolicy() == .accessory {
-            print("[AppDelegate] Temporarily setting activation policy to .regular to show utility window from accessory mode.")
-            NSApp.setActivationPolicy(.regular)
-        }
+        print("[AppDelegate] handleShowSymbolPicker completed.")
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         print("[AppDelegate] applicationShouldHandleReopen called. HasVisibleWindows: \(flag)")
         if !flag {
-            if appSettings.showInMenuBar, let button = statusItem?.button {
-                if popover?.isShown == false {
-                     togglePopover()
-                } else {
-                     popover?.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
-                     NSApp.activate(ignoringOtherApps: true)
+            for window in NSApp.windows {
+                if window.title == "SF Buddy" {
+                    window.makeKeyAndOrderFront(nil)
+                    return true
                 }
-            } else {
-                openUtilityWindow()
             }
         }
         return true
@@ -230,3 +201,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cancellables.forEach { $0.cancel() }
     }
 }
+#endif

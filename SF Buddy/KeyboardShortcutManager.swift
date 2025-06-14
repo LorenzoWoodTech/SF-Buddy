@@ -2,16 +2,21 @@
 //  KeyboardShortcutManager.swift
 //  SF Buddy
 //
+//  Platform-specific keyboard shortcut management
 //
 
 import Foundation
-// import Carbon
+#if os(macOS)
 import AppKit
+#endif
 
 class KeyboardShortcutManager: ObservableObject {
+    #if os(macOS)
     private var eventMonitor: Any?
+    #endif
     
     func setupGlobalShortcut() {
+        #if os(macOS)
         print("[KeyboardShortcutManager] setupGlobalShortcut called.")
         
         // Use NSEvent monitor instead of Carbon APIs
@@ -41,12 +46,17 @@ class KeyboardShortcutManager: ObservableObject {
         } else {
             print("[KeyboardShortcutManager] FAILED to create global event monitor.")
         }
+        #else
+        print("[KeyboardShortcutManager] Global shortcuts only available on macOS")
+        #endif
     }
     
     deinit {
+        #if os(macOS)
         if let eventMonitor = eventMonitor {
             print("[KeyboardShortcutManager] Removing global event monitor.")
             NSEvent.removeMonitor(eventMonitor)
         }
+        #endif
     }
 }
