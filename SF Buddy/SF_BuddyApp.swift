@@ -34,10 +34,9 @@ struct SF_BuddyApp: App {
         }
         
         Settings {
-            ContentView()
+            SettingsView()
                 .environmentObject(SFSymbolService.shared)
                 .environmentObject(AppSettings.shared)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
         #else
         // iOS/iPadOS: Standard app with main content

@@ -28,7 +28,7 @@ struct SymbolPickerView: View {
                         showingGridSizePopover.toggle()
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: gridSize.iconName)
+                            Image(systemName: gridSize.gridIconName)
                                 .font(.caption)
                             Text("Grid")
                                 .font(.caption)
@@ -203,7 +203,7 @@ enum GridSize: String, CaseIterable, Identifiable {
         }
     }
     
-    var iconName: String {
+    var gridIconName: String {
         switch self {
         case .small: return "grid"
         case .medium: return "square.grid.2x2"
@@ -238,21 +238,6 @@ enum GridSize: String, CaseIterable, Identifiable {
     }
 }
 
-extension SFSymbolRenderingMode {
-    var iconName: String {
-        switch self {
-        case .monochrome:
-            return "circle"
-        case .hierarchical:
-            return "circle.lefthalf.striped.horizontal"
-        case .palette:
-            return "paintpalette"
-        case .multicolor:
-            return "circle.hexagongrid"
-        }
-    }
-}
-
 private struct GridSizePopover: View {
     @Binding var selectedGridSize: GridSize
     @Environment(\.dismiss) private var dismiss
@@ -270,7 +255,7 @@ private struct GridSizePopover: View {
                         dismiss()
                     } label: {
                         HStack {
-                            Image(systemName: size.iconName)
+                            Image(systemName: size.gridIconName)
                                 .font(.caption)
                             Text(size.displayName)
                                 .font(.caption)
@@ -296,7 +281,7 @@ private struct GridSizePopover: View {
 }
 
 private struct RenderingModePopover: View {
-    @Binding var selectedRenderingMode: SFSymbolRenderingMode
+    @Binding var selectedRenderingMode: ServiceRenderingMode
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -306,7 +291,7 @@ private struct RenderingModePopover: View {
                 .fontWeight(.medium)
             
             VStack(spacing: 4) {
-                ForEach(SFSymbolRenderingMode.allCases) { mode in
+                ForEach(ServiceRenderingMode.allCases) { mode in
                     Button {
                         selectedRenderingMode = mode
                         dismiss()
