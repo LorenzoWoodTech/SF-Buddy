@@ -23,6 +23,19 @@ enum SFSymbolRenderingMode: String, CaseIterable, Identifiable {
         case .multicolor: return "Multicolor"
         }
     }
+    
+    var iconName: String {
+        switch self {
+        case .monochrome:
+            return "circle"
+        case .hierarchical:
+            return "circle.lefthalf.striped.horizontal"
+        case .palette:
+            return "paintpalette"
+        case .multicolor:
+            return "circle.hexagongrid"
+        }
+    }
 }
 
 @MainActor
