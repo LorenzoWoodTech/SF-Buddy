@@ -9,8 +9,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var showingSettingsSheet = false
-    @StateObject private var symbolService = SFSymbolService.shared
     @State private var showingIconRegistry = false
+    @Environment(SFSymbolService.self) private var symbolService
 
     var body: some View {
         Group {
@@ -38,9 +38,9 @@ struct ContentView: View {
 }
 
 struct SearchView: View {
-    @StateObject private var symbolService = SFSymbolService.shared
     @State private var searchText = ""
     @Binding var showingSettingsSheet: Bool
+    @Environment(SFSymbolService.self) private var symbolService
 
     var body: some View {
         VStack(spacing: 16) {
@@ -74,7 +74,8 @@ struct SearchView: View {
                     HStack {
                         Image(systemName: "key.fill")
                             .foregroundColor(.orange)
-                        SecureField("Enter your Anthropic API Key...", text: $symbolService.claudeAPIKey)
+                        @Bindable var bindableSymbolService = symbolService
+                        SecureField("Enter your Anthropic API Key...", text: $bindableSymbolService.claudeAPIKey)
                             .textFieldStyle(.plain)
                     }
                     .padding(8)
@@ -295,6 +296,6 @@ struct FeatureItem: View {
 
 #Preview {
     ContentView()
-        .environmentObject(SFSymbolService.shared)
-        .environmentObject(AppSettings.shared)
+        .environment(SFSymbolService.shared)
+        .environment(AppSettings.shared)
 }

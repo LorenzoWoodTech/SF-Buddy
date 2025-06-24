@@ -7,9 +7,11 @@
 
 import SwiftUI
 import Combine
+import Observation
 
+@Observable
 @MainActor
-class AppSettings: ObservableObject {
+class AppSettings {
     static let shared = AppSettings()
 
     private static let userDefaultsShowInMenuBarKey = "ShowInMenuBar"
@@ -20,7 +22,7 @@ class AppSettings: ObservableObject {
     private static let userDefaultsVegasIntensityKey = "VegasIntensity"
     private static let userDefaultsVegasRotationEnabledKey = "VegasRotationEnabled"
 
-    @Published var showInMenuBar: Bool {
+    var showInMenuBar: Bool {
         didSet {
             UserDefaults.standard.set(showInMenuBar, forKey: AppSettings.userDefaultsShowInMenuBarKey)
             print("[AppSettings] ShowInMenuBar setting changed to: \(showInMenuBar) and saved.")
@@ -29,67 +31,67 @@ class AppSettings: ObservableObject {
         }
     }
     
-    @Published var symbolCount: Int {
+    var symbolCount: Int {
         didSet {
             UserDefaults.standard.set(symbolCount, forKey: AppSettings.userDefaultsSymbolCountKey)
             print("[AppSettings] SymbolCount setting changed to: \(symbolCount) and saved.")
         }
     }
     
-    @Published var selectedModel: ClaudeModel {
+    var selectedModel: ClaudeModel {
         didSet {
             UserDefaults.standard.set(selectedModel.rawValue, forKey: AppSettings.userDefaultsSelectedModelKey)
             print("[AppSettings] SelectedModel setting changed to: \(selectedModel.displayName) and saved.")
         }
     }
     
-    @Published var vegasAnimationSpeed: Double = 1.0 {
+    var vegasAnimationSpeed: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(vegasAnimationSpeed, forKey: AppSettings.userDefaultsVegasAnimationSpeedKey)
             print("[AppSettings] VegasAnimationSpeed setting changed to: \(vegasAnimationSpeed) and saved.")
         }
     }
     
-    @Published var vegasColorCycleSpeed: Double = 1.0 {
+    var vegasColorCycleSpeed: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(vegasColorCycleSpeed, forKey: AppSettings.userDefaultsVegasColorCycleSpeedKey)
             print("[AppSettings] VegasColorCycleSpeed setting changed to: \(vegasColorCycleSpeed) and saved.")
         }
     }
     
-    @Published var vegasIntensity: Double = 1.0 {
+    var vegasIntensity: Double = 1.0 {
         didSet {
             UserDefaults.standard.set(vegasIntensity, forKey: AppSettings.userDefaultsVegasIntensityKey)
             print("[AppSettings] VegasIntensity setting changed to: \(vegasIntensity) and saved.")
         }
     }
     
-    @Published var vegasRotationEnabled: Bool = true {
+    var vegasRotationEnabled: Bool = true {
         didSet {
             UserDefaults.standard.set(vegasRotationEnabled, forKey: AppSettings.userDefaultsVegasRotationEnabledKey)
             print("[AppSettings] VegasRotationEnabled setting changed to: \(vegasRotationEnabled) and saved.")
         }
     }
 
-    @Published var vegasRandomnessLevel: Double = 0.5 {
+    var vegasRandomnessLevel: Double = 0.5 {
         didSet {
             UserDefaults.standard.set(vegasRandomnessLevel, forKey: "VegasRandomnessLevel")
         }
     }
     
-    @Published var vegasScaleIntensity: Double = 0.3 {
+    var vegasScaleIntensity: Double = 0.3 {
         didSet {
             UserDefaults.standard.set(vegasScaleIntensity, forKey: "VegasScaleIntensity")
         }
     }
     
-    @Published var vegasMovementIntensity: Double = 5.0 {
+    var vegasMovementIntensity: Double = 5.0 {
         didSet {
             UserDefaults.standard.set(vegasMovementIntensity, forKey: "VegasMovementIntensity")
         }
     }
     
-    @Published var vegasChaosMode: Bool = false {
+    var vegasChaosMode: Bool = false {
         didSet {
             UserDefaults.standard.set(vegasChaosMode, forKey: "VegasChaosMode")
         }

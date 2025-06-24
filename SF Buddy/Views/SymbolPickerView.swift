@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct SymbolPickerView: View {
-    @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(SFSymbolService.self) private var symbolService
+    @Environment(AppSettings.self) private var appSettings
     @State private var selectedColor: Color = .primary
     @State private var showingStylePopover = false
     @State private var showingColorPopover = false
@@ -64,7 +64,7 @@ struct SymbolPickerView: View {
                     .buttonStyle(.plain)
                     .popover(isPresented: $showingStylePopover) {
                         RenderingModePopover(
-                            selectedRenderingMode: $symbolService.currentRenderingMode
+                            selectedRenderingMode: .constant(.hierarchical)
                         )
                     }
                     
@@ -381,8 +381,8 @@ struct SymbolButton: View {
     let symbolColor: Color
     let vegasMode: Bool
     let gridSize: GridSize
-    @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(SFSymbolService.self) private var symbolService
+    @Environment(AppSettings.self) private var appSettings
     @State private var isHovered = false
     @State private var justCopied = false
     @State private var animationOffset: CGFloat = 0
@@ -574,10 +574,11 @@ struct SymbolButton: View {
 }
 
 struct VegasSettingsPopover: View {
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
+        @Bindable var bindableAppSettings = appSettings
         VStack(alignment: .leading, spacing: 12) {
             Text("Vegas Mode Settings")
                 .font(.caption)
@@ -588,9 +589,9 @@ struct VegasSettingsPopover: View {
                     Text("Animation Speed:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasAnimationSpeed, in: 0.5...3.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasAnimationSpeed, in: 0.5...3.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1fx", appSettings.vegasAnimationSpeed))
+                    Text(String(format: "%.1fx", bindableAppSettings.vegasAnimationSpeed))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -600,9 +601,9 @@ struct VegasSettingsPopover: View {
                     Text("Color Cycling:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasColorCycleSpeed, in: 0.2...5.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasColorCycleSpeed, in: 0.2...5.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1fx", appSettings.vegasColorCycleSpeed))
+                    Text(String(format: "%.1fx", bindableAppSettings.vegasColorCycleSpeed))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -612,9 +613,9 @@ struct VegasSettingsPopover: View {
                     Text("Intensity:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasIntensity, in: 0.3...2.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasIntensity, in: 0.3...2.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1fx", appSettings.vegasIntensity))
+                    Text(String(format: "%.1fx", bindableAppSettings.vegasIntensity))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -624,9 +625,9 @@ struct VegasSettingsPopover: View {
                     Text("Randomness:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasRandomnessLevel, in: 0.0...1.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasRandomnessLevel, in: 0.0...1.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1f", appSettings.vegasRandomnessLevel))
+                    Text(String(format: "%.1f", bindableAppSettings.vegasRandomnessLevel))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -636,9 +637,9 @@ struct VegasSettingsPopover: View {
                     Text("Scale Chaos:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasScaleIntensity, in: 0.1...1.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasScaleIntensity, in: 0.1...1.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1f", appSettings.vegasScaleIntensity))
+                    Text(String(format: "%.1f", bindableAppSettings.vegasScaleIntensity))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -648,9 +649,9 @@ struct VegasSettingsPopover: View {
                     Text("Movement:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasMovementIntensity, in: 1.0...15.0, step: 1.0)
+                    Slider(value: $bindableAppSettings.vegasMovementIntensity, in: 1.0...15.0, step: 1.0)
                         .frame(width: 80)
-                    Text(String(format: "%.0f", appSettings.vegasMovementIntensity))
+                    Text(String(format: "%.0f", bindableAppSettings.vegasMovementIntensity))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -660,7 +661,7 @@ struct VegasSettingsPopover: View {
                     Text("Rotation:")
                         .font(.caption2)
                     Spacer()
-                    Toggle("", isOn: $appSettings.vegasRotationEnabled)
+                    Toggle("", isOn: $bindableAppSettings.vegasRotationEnabled)
                         .controlSize(.mini)
                 }
             }
@@ -688,6 +689,6 @@ struct VegasSettingsPopover: View {
 
 #Preview {
     SymbolPickerView()
-        .environmentObject(SFSymbolService.shared)
-        .environmentObject(AppSettings.shared)
+        .environment(SFSymbolService.shared)
+        .environment(AppSettings.shared)
 }

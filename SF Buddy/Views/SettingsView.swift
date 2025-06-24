@@ -8,15 +8,17 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(SFSymbolService.self) private var symbolService
+    @Environment(AppSettings.self) private var appSettings
 
     var body: some View {
+        @Bindable var bindableSymbolService = symbolService
+        @Bindable var bindableAppSettings = appSettings
         Form {
             Section("AI Search") {
-                SecureField("API Key", text: $symbolService.claudeAPIKey)
+                SecureField("API Key", text: $bindableSymbolService.claudeAPIKey)
                 
-                Picker("Results", selection: $appSettings.symbolCount) {
+                Picker("Results", selection: $bindableAppSettings.symbolCount) {
                     ForEach([8, 12, 16, 20, 24], id: \.self) { count in
                         Text("\(count)").tag(count)
                     }
@@ -26,7 +28,7 @@ struct SettingsView: View {
             
             #if os(macOS)
             Section("Appearance") {
-                Toggle("Show in Menu Bar", isOn: $appSettings.showInMenuBar)
+                Toggle("Show in Menu Bar", isOn: $bindableAppSettings.showInMenuBar)
             }
             #endif
             
@@ -46,6 +48,6 @@ struct SettingsView: View {
     NavigationStack {
         SettingsView()
     }
-    .environmentObject(SFSymbolService.shared)
-    .environmentObject(AppSettings.shared)
+    .environment(SFSymbolService.shared)
+    .environment(AppSettings.shared)
 }

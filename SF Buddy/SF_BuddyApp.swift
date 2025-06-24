@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 #if os(macOS)
 import AppKit
 import Carbon
@@ -13,21 +14,21 @@ import Combine
 #endif
 
 @main
-struct SF_BuddyApp: App {
+struct SFBuddyApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
     
-    let persistenceController = PersistenceController.shared
+    let modelContainer = SwiftDataContainer.shared
 
     var body: some Scene {
         #if os(macOS)
         // Main app window for macOS - This is now the primary interface
         WindowGroup("SF Buddy") {
             MainContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(SFSymbolService.shared)
-                .environmentObject(AppSettings.shared)
+                .modelContainer(modelContainer)
+                .environment(SFSymbolService.shared)
+                .environment(AppSettings.shared)
         }
         .commands {
             SidebarCommands()
@@ -35,16 +36,16 @@ struct SF_BuddyApp: App {
         
         Settings {
             SettingsView()
-                .environmentObject(SFSymbolService.shared)
-                .environmentObject(AppSettings.shared)
+                .environment(SFSymbolService.shared)
+                .environment(AppSettings.shared)
         }
         #else
         // iOS/iPadOS: Standard app with main content
         WindowGroup {
             MainContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(SFSymbolService.shared)
-                .environmentObject(AppSettings.shared)
+                .modelContainer(modelContainer)
+                .environment(SFSymbolService.shared)
+                .environment(AppSettings.shared)
         }
         #endif
     }
@@ -55,6 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var popover: NSPopover?
     var keyboardShortcutManager: KeyboardShortcutManager?
+    @MainActor
     private var appSettings = AppSettings.shared
     private var cancellables: Set<AnyCancellable> = []
 
@@ -69,12 +71,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         setupStatusItemIfNeeded()
 
-        appSettings.$showInMenuBar
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.setupStatusItemIfNeeded()
-            }
-            .store(in: &cancellables)
+        // Observe showInMenuBar changes using withObservationTracking
+        setupObservation()
         
         keyboardShortcutManager = KeyboardShortcutManager()
         keyboardShortcutManager?.setupGlobalShortcut()
@@ -84,6 +82,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("[AppDelegate] Notification observer added for showSymbolPicker.")
         
         print("[AppDelegate] applicationDidFinishLaunching finished.")
+    }
+
+    private func setupObservation() {
+        Task { @MainActor in
+            withObservationTracking {
+                _ = appSettings.showInMenuBar
+            } onChange: {
+                Task { @MainActor in
+                    self.setupStatusItemIfNeeded()
+                    self.setupObservation()
+                }
+            }
+        }
     }
 
     @MainActor
@@ -126,7 +137,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if popover == nil {
                 print("[AppDelegate] togglePopover: Creating new popover.")
                 popover = NSPopover()
-                popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
+                popover?.contentViewController = NSHostingController(
+                    rootView: ContentView()
+                        .environment(SFSymbolService.shared)
+                        .environment(AppSettings.shared)
+                        .modelContainer(SwiftDataContainer.shared)
+                )
                 popover?.behavior = .transient
                 popover?.contentSize = NSSize(width: 450, height: 600)
             }
@@ -158,7 +174,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if self.popover == nil {
                 print("[AppDelegate] handleShowSymbolPicker: Creating new popover.")
                 self.popover = NSPopover()
-                self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
+                self.popover?.contentViewController = NSHostingController(
+                    rootView: ContentView()
+                        .environment(SFSymbolService.shared)
+                        .environment(AppSettings.shared)
+                        .modelContainer(SwiftDataContainer.shared)
+                )
                 self.popover?.behavior = .transient
                 self.popover?.contentSize = NSSize(width: 450, height: 600)
             }
@@ -199,5 +220,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.removeObserver(self, name: .showSymbolPicker, object: nil)
         cancellables.forEach { $0.cancel() }
     }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .showSymbolPicker, object: nil)
+        cancellables.forEach { $0.cancel() }
+    }
 }
+
+// Extension removed - notification name now declared in AppSettings.swift
 #endif

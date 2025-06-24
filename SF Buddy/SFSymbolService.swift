@@ -10,6 +10,7 @@ import AppKit
 import UIKit
 #endif
 import Combine
+import Observation
 
 enum ServiceRenderingMode: String, CaseIterable, Identifiable {
     case monochrome, hierarchical, palette, multicolor
@@ -38,24 +39,25 @@ enum ServiceRenderingMode: String, CaseIterable, Identifiable {
     }
 }
 
+@Observable
 @MainActor
-class SFSymbolService: ObservableObject {
+class SFSymbolService {
     static let shared = SFSymbolService()
     private static let userDefaultsAPIKey = "ClaudeAPIKey"
 
-    @Published var suggestedSymbols: [SFSymbolSuggestion] = []
-    @Published var isProcessing = false
-    @Published var lastProcessedText = ""
-    @Published var currentRenderingMode: ServiceRenderingMode = .multicolor
-    @Published var invalidSymbolNamesFromClaude: [String] = []
+    var suggestedSymbols: [SFSymbolSuggestion] = []
+    var isProcessing = false
+    var lastProcessedText = ""
+    var currentRenderingMode: ServiceRenderingMode = .multicolor
+    var invalidSymbolNamesFromClaude: [String] = []
     
-    @Published var claudeAPIKey: String {
+    var claudeAPIKey: String {
         didSet {
             UserDefaults.standard.set(claudeAPIKey, forKey: SFSymbolService.userDefaultsAPIKey)
             print("[SFSymbolService] API Key updated and saved to UserDefaults.")
         }
     }
-    @Published var apiKeyMissingOrInvalid: Bool = false
+    var apiKeyMissingOrInvalid: Bool = false
 
     private let claudeURL = "https://api.anthropic.com/v1/messages"
     
@@ -376,7 +378,12 @@ struct ClaudeResponse: Decodable {
     let content: [ClaudeContentBlock]
     let model: String
     let role: String
-    let stop_reason: String
+    let stopReason: String
+    
+    enum CodingKeys: String, CodingKey {
+        case content, model, role
+        case stopReason = "stop_reason"
+    }
 }
 
 struct ClaudeContentBlock: Decodable {

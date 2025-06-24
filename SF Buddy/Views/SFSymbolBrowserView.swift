@@ -17,7 +17,7 @@ struct SFSymbolBrowserView: View {
     @Binding var selectedSymbol: String?
     @Environment(\.dismiss) private var dismiss
     
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @State private var searchText = ""
     @State private var selectedCategory: SFSymbolCategory = .all
     @State private var selectedColor: Color = .primary
@@ -50,38 +50,47 @@ struct SFSymbolBrowserView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .searchable(text: $searchText, prompt: "Search symbols...")
+        .onKeyPress(.escape) {
+            dismiss()
+            return .handled
+        }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 
                 ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 8) {
-                        // Category toggle button
+                    HStack(spacing: 12) {
+                        // Category toggle button with proper label
                         Button {
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 showingCategoryFilter.toggle()
                             }
                         } label: {
+                            HStack(spacing: 4) {
                             Image(systemName: showingCategoryFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                                Text("Categories")
+                                    .font(.caption)
+                            }
                                 .foregroundColor(.accentColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
                         }
                         .help("Toggle Categories")
                         
-                        // Info button showing symbol count
-                        Button {
-                            // Could show detailed info about current filter/search
-                        } label: {
+                        // Symbol count display
                             HStack(spacing: 4) {
                                 Image(systemName: "info.circle")
                                     .font(.caption)
-                                Text("\(filteredSymbols.count)")
-                                    .font(.caption2)
+                            Text("\(filteredSymbols.count) symbols")
+                                .font(.caption)
                                     .fontWeight(.medium)
                             }
                             .foregroundColor(.secondary)
-                        }
-                        .help("Symbol count: \(filteredSymbols.count)")
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
                     }
                 }
             }
@@ -278,8 +287,10 @@ struct SFSymbolBrowserView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             } else {
-                // Enhanced empty state with context-aware messaging
-                VStack(spacing: 16) {
+                // Enhanced empty state with AI suggestions (vertically centered)
+                Spacer()
+                
+                VStack(spacing: 20) {
                     Image(systemName: searchText.isEmpty ? "square.grid.3x2" : "magnifyingglass")
                         .font(.system(size: 48))
                         .foregroundColor(.secondary)
@@ -291,7 +302,7 @@ struct SFSymbolBrowserView: View {
                             .foregroundColor(.secondary)
                         
                         if !searchText.isEmpty {
-                            Text("Try different search terms or clear filters")
+                            Text("Try different search terms or use AI to find symbols")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
@@ -303,7 +314,63 @@ struct SFSymbolBrowserView: View {
                         }
                     }
                     
-                    // Quick action buttons for empty state
+                    // AI-powered suggestion buttons
+                    VStack(spacing: 12) {
+                        Button {
+                            // TODO: Implement AI symbol suggestions
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 16))
+                                Text("Suggest Symbols with AI")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            // TODO: Future feature - AI symbol generation
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wand.and.stars")
+                                    .font(.system(size: 16))
+                                Text("Generate Symbol with AI")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Image(systemName: "clock.badge.exclamationmark")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.orange)
+                                Text("Coming Soon")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                    .fontWeight(.medium)
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                                    .background(RoundedRectangle(cornerRadius: 12).fill(.gray.opacity(0.1)))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(true)
+                    }
+                    
+                    // Quick action buttons for clearing filters
                     if !searchText.isEmpty || selectedCategory != .all {
                         HStack(spacing: 12) {
                             if !searchText.isEmpty {
@@ -326,8 +393,9 @@ struct SFSymbolBrowserView: View {
                         }
                     }
                 }
-                .padding(.top, 80)
                 .frame(maxWidth: .infinity)
+                
+                Spacer()
             }
         }
     }
@@ -457,7 +525,7 @@ struct BrowserSymbolGridButton: View {
     let renderingMode: BrowserRenderingMode
     let action: () -> Void
     
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @State private var isHovered = false
     @State private var animationOffset: CGFloat = 0
     @State private var animationRotation: Double = 0
@@ -833,10 +901,11 @@ private struct BrowserColorPickerPopover: View {
 
 // MARK: - Complete Vegas Settings Popover (EXACTLY from SymbolPickerView)
 struct BrowserVegasSettingsPopover: View {
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
+        @Bindable var bindableAppSettings = appSettings
         VStack(alignment: .leading, spacing: 12) {
             Text("Vegas Mode Settings")
                 .font(.caption)
@@ -847,9 +916,9 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Animation Speed:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasAnimationSpeed, in: 0.5...3.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasAnimationSpeed, in: 0.5...3.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1fx", appSettings.vegasAnimationSpeed))
+                    Text(String(format: "%.1fx", bindableAppSettings.vegasAnimationSpeed))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -859,9 +928,9 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Color Cycling:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasColorCycleSpeed, in: 0.2...5.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasColorCycleSpeed, in: 0.2...5.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1fx", appSettings.vegasColorCycleSpeed))
+                    Text(String(format: "%.1fx", bindableAppSettings.vegasColorCycleSpeed))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -871,9 +940,9 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Intensity:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasIntensity, in: 0.3...2.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasIntensity, in: 0.3...2.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1fx", appSettings.vegasIntensity))
+                    Text(String(format: "%.1fx", bindableAppSettings.vegasIntensity))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -883,9 +952,9 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Randomness:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasRandomnessLevel, in: 0.0...1.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasRandomnessLevel, in: 0.0...1.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1f", appSettings.vegasRandomnessLevel))
+                    Text(String(format: "%.1f", bindableAppSettings.vegasRandomnessLevel))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -895,9 +964,9 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Scale Chaos:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasScaleIntensity, in: 0.1...1.0, step: 0.1)
+                    Slider(value: $bindableAppSettings.vegasScaleIntensity, in: 0.1...1.0, step: 0.1)
                         .frame(width: 80)
-                    Text(String(format: "%.1f", appSettings.vegasScaleIntensity))
+                    Text(String(format: "%.1f", bindableAppSettings.vegasScaleIntensity))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -907,9 +976,9 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Movement:")
                         .font(.caption2)
                     Spacer()
-                    Slider(value: $appSettings.vegasMovementIntensity, in: 1.0...15.0, step: 1.0)
+                    Slider(value: $bindableAppSettings.vegasMovementIntensity, in: 1.0...15.0, step: 1.0)
                         .frame(width: 80)
-                    Text(String(format: "%.0f", appSettings.vegasMovementIntensity))
+                    Text(String(format: "%.0f", bindableAppSettings.vegasMovementIntensity))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 25)
@@ -919,14 +988,14 @@ struct BrowserVegasSettingsPopover: View {
                     Text("Rotation:")
                         .font(.caption2)
                     Spacer()
-                    Toggle("", isOn: $appSettings.vegasRotationEnabled)
+                    Toggle("", isOn: $bindableAppSettings.vegasRotationEnabled)
                         .controlSize(.mini)
                 }
             }
             
             HStack {
                 Button("Randomize") {
-                    appSettings.randomizeVegas()
+                    bindableAppSettings.randomizeVegas()
                 }
                 .font(.caption)
                 
