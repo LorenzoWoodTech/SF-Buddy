@@ -22,12 +22,12 @@ struct SF_BuddyApp: App {
 
     var body: some Scene {
         #if os(macOS)
-        // Main app window for macOS - This is now the primary interface
+        // Main app window for macOS - Three column split view
         WindowGroup("SF Buddy") {
             MainContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(SFSymbolService.shared)
-                .environmentObject(AppSettings.shared)
+                .environment(AppSettings.shared)
         }
         .commands {
             SidebarCommands()
@@ -36,15 +36,15 @@ struct SF_BuddyApp: App {
         Settings {
             SettingsView()
                 .environmentObject(SFSymbolService.shared)
-                .environmentObject(AppSettings.shared)
+                .environment(AppSettings.shared)
         }
         #else
-        // iOS/iPadOS: Standard app with main content
+        // iOS/iPadOS: Split view for iPad, standard for iPhone
         WindowGroup {
             MainContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(SFSymbolService.shared)
-                .environmentObject(AppSettings.shared)
+                .environment(AppSettings.shared)
         }
         #endif
     }
@@ -69,12 +69,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         setupStatusItemIfNeeded()
 
-        appSettings.$showInMenuBar
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.setupStatusItemIfNeeded()
-            }
-            .store(in: &cancellables)
+        // Note: With @Observable, we need a different approach for observing changes
+        NotificationCenter.default.addObserver(self, selector: #selector(setupStatusItemIfNeeded), name: .appSettingShowInMenuBarChanged, object: nil)
         
         keyboardShortcutManager = KeyboardShortcutManager()
         keyboardShortcutManager?.setupGlobalShortcut()
@@ -87,7 +83,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor
-    private func setupStatusItemIfNeeded() {
+    @objc private func setupStatusItemIfNeeded() {
         if appSettings.showInMenuBar {
             if statusItem == nil {
                 print("[AppDelegate] Creating status item as per settings.")
@@ -126,7 +122,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if popover == nil {
                 print("[AppDelegate] togglePopover: Creating new popover.")
                 popover = NSPopover()
-                popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
+                popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environment(AppSettings.shared))
                 popover?.behavior = .transient
                 popover?.contentSize = NSSize(width: 450, height: 600)
             }
@@ -158,7 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if self.popover == nil {
                 print("[AppDelegate] handleShowSymbolPicker: Creating new popover.")
                 self.popover = NSPopover()
-                self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environmentObject(AppSettings.shared))
+                self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environment(AppSettings.shared))
                 self.popover?.behavior = .transient
                 self.popover?.contentSize = NSSize(width: 450, height: 600)
             }
@@ -197,6 +193,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         print("[AppDelegate] applicationWillTerminate called.")
         NotificationCenter.default.removeObserver(self, name: .showSymbolPicker, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .appSettingShowInMenuBarChanged, object: nil)
         cancellables.forEach { $0.cancel() }
     }
 }

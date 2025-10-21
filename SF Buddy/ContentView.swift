@@ -296,5 +296,5 @@ struct FeatureItem: View {
 #Preview {
     ContentView()
         .environmentObject(SFSymbolService.shared)
-        .environmentObject(AppSettings.shared)
+        .environment(AppSettings.shared)
 }

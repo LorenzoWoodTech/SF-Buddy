@@ -9,9 +9,11 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
 
     var body: some View {
+        @Bindable var appSettings = appSettings
+        
         Form {
             Section("AI Search") {
                 SecureField("API Key", text: $symbolService.claudeAPIKey)
@@ -47,5 +49,5 @@ struct SettingsView: View {
         SettingsView()
     }
     .environmentObject(SFSymbolService.shared)
-    .environmentObject(AppSettings.shared)
+    .environment(AppSettings.shared)
 }

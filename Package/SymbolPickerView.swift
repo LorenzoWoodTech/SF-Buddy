@@ -9,7 +9,7 @@ import SwiftUI
 
 struct SymbolPickerView: View {
     @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @State private var selectedColor: Color = .primary
     @State private var showingStylePopover = false
     @State private var showingColorPopover = false
@@ -382,7 +382,7 @@ struct SymbolButton: View {
     let vegasMode: Bool
     let gridSize: GridSize
     @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @State private var isHovered = false
     @State private var justCopied = false
     @State private var animationOffset: CGFloat = 0
@@ -573,11 +573,14 @@ struct SymbolButton: View {
     }
 }
 
+// MARK: - Complete Vegas Settings Popover (EXACTLY from SymbolPickerView)
 struct VegasSettingsPopover: View {
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
+        @Bindable var appSettings = appSettings
+        
         VStack(alignment: .leading, spacing: 12) {
             Text("Vegas Mode Settings")
                 .font(.caption)
@@ -689,5 +692,5 @@ struct VegasSettingsPopover: View {
 #Preview {
     SymbolPickerView()
         .environmentObject(SFSymbolService.shared)
-        .environmentObject(AppSettings.shared)
+        .environment(AppSettings.shared)
 }

@@ -17,7 +17,7 @@ struct SFSymbolBrowserView: View {
     @Binding var selectedSymbol: String?
     @Environment(\.dismiss) private var dismiss
     
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @State private var searchText = ""
     @State private var selectedCategory: SFSymbolCategory = .all
     @State private var selectedColor: Color = .primary
@@ -457,7 +457,7 @@ struct BrowserSymbolGridButton: View {
     let renderingMode: BrowserRenderingMode
     let action: () -> Void
     
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @State private var isHovered = false
     @State private var animationOffset: CGFloat = 0
     @State private var animationRotation: Double = 0
@@ -833,10 +833,12 @@ private struct BrowserColorPickerPopover: View {
 
 // MARK: - Complete Vegas Settings Popover (EXACTLY from SymbolPickerView)
 struct BrowserVegasSettingsPopover: View {
-    @StateObject private var appSettings = AppSettings.shared
+    @Environment(AppSettings.self) private var appSettings
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
+        @Bindable var appSettings = appSettings
+        
         VStack(alignment: .leading, spacing: 12) {
             Text("Vegas Mode Settings")
                 .font(.caption)
@@ -1025,4 +1027,5 @@ extension String {
 
 #Preview {
     SFSymbolBrowserView(selectedSymbol: .constant(nil))
+        .environment(AppSettings.shared)
 }

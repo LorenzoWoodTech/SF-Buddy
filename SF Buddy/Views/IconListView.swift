@@ -32,7 +32,6 @@ struct IconListView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedIcon = icon
-                                // ADD: Haptic feedback for iPad selection
                                 #if os(iOS)
                                 let impact = UIImpactFeedbackGenerator(style: .light)
                                 impact.impactOccurred()
@@ -149,7 +148,7 @@ struct IconRow: View {
                     Text(icon.baseSymbol ?? "No symbol")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .fontFamily(.monospaced)
+                        .fontDesign(.monospaced)
                         .lineLimit(1)
                     
                     if icon.isCustomAsset {
