@@ -2,473 +2,370 @@
 //  MainContentView.swift
 //  SF Buddy
 //
-//  Three-column layout with actual functional views
+//  Simplified menu bar popover focused interface
 //
 
 import SwiftUI
-import CoreData
-
-enum MainSidebarItem: String, CaseIterable {
-    case search = "Search"
-    case registry = "Registry"
-    case settings = "Settings"
-    
-    var systemImage: String {
-        switch self {
-        case .search: return "magnifyingglass"
-        case .registry: return "cylinder.split.1x2"
-        case .settings: return "gear"
-        }
-    }
-}
+import SwiftData
+import SF_Buddy_Package
 
 struct MainContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-    @StateObject private var symbolService = SFSymbolService.shared
-    @StateObject private var iconStore = IconStore(context: PersistenceController.shared.container.viewContext)
-    
-    @State private var selectedSidebarItem: MainSidebarItem? = .search
-    @State private var selectedIcon: Icon?
-    @State private var showingSettingsSheet = false
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    @State private var searchText = ""
+    @State private var showingSearch = false
+    @State private var showingSettings = false
     
     var body: some View {
-        NavigationSplitView {
-            // Sidebar with actual functional sections
-            List(selection: $selectedSidebarItem) {
-                Section("SF Buddy") {
-                    ForEach(MainSidebarItem.allCases, id: \.self) { item in
-                        Label(item.rawValue, systemImage: item.systemImage)
-                            .tag(item)
-                    }
-                }
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Header with search
+                HeaderView(searchText: $searchText, showingSearch: $showingSearch, showingSettings: $showingSettings)
                 
-                if !symbolService.suggestedSymbols.isEmpty {
-                    Section("Recent Searches") {
-                        if !symbolService.lastProcessedText.isEmpty {
-                            Label(symbolService.lastProcessedText, systemImage: "clock")
-                        }
-                    }
-                }
-            }
-            .navigationTitle("SF Buddy")
-        } content: {
-            // Content area shows different views based on sidebar selection
-            Group {
-                switch selectedSidebarItem {
-                case .search:
-                    SearchContentView()
-                case .registry:
-                    IconRegistryContentView(selectedIcon: $selectedIcon)
-                case .settings:
-                    SettingsContentView()
-                case .none:
-                    SearchContentView()
-                }
-            }
-        } detail: {
-            // Detail area shows symbol picker or icon details
-            Group {
-                if selectedSidebarItem == .search {
-                    if !symbolService.suggestedSymbols.isEmpty || !symbolService.invalidSymbolNamesFromClaude.isEmpty {
-                        SymbolPickerView()
-                            .navigationTitle("Symbol Results")
-                    } else {
-                        SearchPlaceholderView()
-                    }
-                } else if selectedSidebarItem == .registry, let selectedIcon = selectedIcon {
-                    IconDetailForm(icon: selectedIcon, iconStore: iconStore)
+                // Main content
+                if showingSearch || !symbolService.suggestedSymbols.isEmpty {
+                    SearchResultsView()
                 } else {
-                    DefaultDetailView(selectedSidebarItem: selectedSidebarItem)
+                    RecentSearchesList()
                 }
             }
         }
+        .frame(width: 400, height: 500)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environment(SFSymbolPackageSettings.shared)
+                .environment(SFSymbolVegasSettings.shared)
+                .environment(AppSettings.shared)
+        }
         .onAppear {
-            iconStore.updateContext(viewContext)
-            if selectedSidebarItem == nil {
-                selectedSidebarItem = .search
+            // Setup symbol action tracking callback
+            setupSymbolServiceCallback()
+        }
+    }
+    
+    private func setupSymbolServiceCallback() {
+        symbolService.trackSymbolActionCallback = { symbolName, action, searchTerm in
+            Task { @MainActor in
+                // Get or create recent search
+                let descriptor = FetchDescriptor<RecentSearch>(
+                    predicate: #Predicate { $0.searchTerm == searchTerm }
+                )
+                
+                do {
+                    let existingSearches = try modelContext.fetch(descriptor)
+                    let search: RecentSearch
+                    
+                    if let existingSearch = existingSearches.first {
+                        search = existingSearch
+                        search.selectedSymbol = symbolName
+                    } else {
+                        search = RecentSearch(searchTerm: searchTerm, selectedSymbol: symbolName)
+                        modelContext.insert(search)
+                    }
+                    
+                    search.recordAction(action)
+                    try modelContext.save()
+                } catch {
+                    print("Failed to track symbol action: \(error)")
+                }
             }
         }
     }
 }
 
-// MARK: - Content Views
-
-struct SearchContentView: View {
-    @StateObject private var symbolService = SFSymbolService.shared
-    @State private var searchText = ""
+private struct HeaderView: View {
+    @Binding var searchText: String
+    @Binding var showingSearch: Bool
+    @Binding var showingSettings: Bool
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
     
     var body: some View {
         VStack(spacing: 16) {
-            // Header
-            VStack(spacing: 8) {
-                Image(systemName: "magnifyingglass.circle")
-                    .font(.system(size: 32))
-                    .foregroundColor(.accentColor)
+            // App title
+            HStack {
+                Image(systemName: "magnifyingglass.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.blue.gradient)
                 
-                Text("Symbol Search")
+                Text("SF Buddy")
                     .font(.headline)
-            }
-            .padding(.top)
-
-            // API Key section
-            if symbolService.claudeAPIKey.isEmpty && !symbolService.isProcessing {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Claude API Key Required:")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    HStack {
-                        Image(systemName: "key.fill")
-                            .foregroundColor(.orange)
-                        SecureField("Enter your Anthropic API Key...", text: $symbolService.claudeAPIKey)
-                            .textFieldStyle(.plain)
-                    }
-                    .padding(8)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                    
-                    Link("Get an API Key from Anthropic", destination: URL(string: "https://console.anthropic.com/account/keys")!)
-                        .font(.caption)
-                        .padding(.top, 2)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gear")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal)
-                .padding(.bottom)
+                .buttonStyle(.plain)
+                .help("Settings")
             }
-
+            
             // Search field
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
+                    .font(.system(size: 14))
+                
                 TextField("Search for symbols...", text: $searchText)
                     .textFieldStyle(.plain)
                     .onSubmit {
                         if !searchText.isEmpty {
-                            Task {
-                                await symbolService.searchSymbols(for: searchText)
-                            }
+                            performSearch()
                         }
                     }
+                    .onChange(of: searchText) { _, newValue in
+                        showingSearch = !newValue.isEmpty
+                    }
+                
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""
+                        showingSearch = false
+                        symbolService.suggestedSymbols = []
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
+                            .font(.system(size: 14))
                     }
                     .buttonStyle(.plain)
-                    .padding(.trailing, 4)
                 }
+            }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            
+            // API key warning if needed
+            if symbolService.claudeAPIKey.isEmpty && !symbolService.isProcessing {
+                APIKeyWarning()
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial)
+    }
+    
+    private func performSearch() {
+        Task {
+            await symbolService.searchSymbols(for: searchText)
+        }
+    }
+}
+
+private struct APIKeyWarning: View {
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: "key.fill")
+                    .foregroundStyle(.orange)
+                Text("API Key Required")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                Spacer()
+            }
+            
+            SecureField("Enter Anthropic API Key", text: $symbolService.claudeAPIKey)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+            
+            Link("Get API Key →", destination: URL(string: "https://console.anthropic.com/account/keys")!)
+                .font(.caption2)
+                .foregroundStyle(.blue)
+        }
+        .padding(10)
+        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct SearchResultsView: View {
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    
+    var body: some View {
+        Group {
+            if symbolService.isProcessing {
+                ProcessingView()
+            } else if !symbolService.suggestedSymbols.isEmpty {
+                PackageSymbolPickerView()
+            } else if symbolService.apiKeyMissingOrInvalid {
+                EmptyStateView(
+                    icon: "key.slash",
+                    title: "API Key Issue",
+                    message: "Check your Anthropic API key and try again"
+                )
+            } else if symbolService.claudeAPIKey.isEmpty {
+                EmptyStateView(
+                    icon: "key.slash",
+                    title: "API Key Needed",
+                    message: "Add your Anthropic API key above to search for symbols"
+                )
+            } else {
+                EmptyStateView(
+                    icon: "magnifyingglass",
+                    title: "No Results",
+                    message: "Try different search terms"
+                )
+            }
+        }
+    }
+}
+
+private struct PackageSymbolPickerView: View {
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    private let columns = Array(repeating: GridItem(.flexible()), count: 3)
+    
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(symbolService.suggestedSymbols, id: \.id) { suggestion in
+                    PackageSymbolButton(suggestion: suggestion)
+                }
+            }
+            .padding(16)
+        }
+    }
+}
+
+private struct PackageSymbolButton: View {
+    let suggestion: SFSymbolSuggestion
+    @State private var isPressed = false
+    @State private var showingCopyFeedback = false
+    
+    var body: some View {
+        Button {
+            copySymbol()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: suggestion.name)
+                    .font(.system(size: 24))
+                    .foregroundStyle(.primary)
+                    .frame(height: 30)
+                
+                Text(suggestion.name)
+                    .font(.caption2)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
             }
             .padding(8)
+            .frame(width: 80, height: 70)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-            .padding(.horizontal)
-
-            // Status area
-            Group {
-                if symbolService.isProcessing {
-                    ProcessingView()
-                } else if symbolService.apiKeyMissingOrInvalid && !symbolService.claudeAPIKey.isEmpty {
-                    APIKeyErrorView(lastProcessedText: symbolService.lastProcessedText)
-                } else if symbolService.claudeAPIKey.isEmpty {
-                    APIKeyNeededView()
-                } else {
-                    ReadyView()
-                }
-            }
-
-            Spacer()
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(.green, lineWidth: showingCopyFeedback ? 2 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: showingCopyFeedback)
+            )
         }
-        .navigationTitle("Search")
+        .buttonStyle(.plain)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity) { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressing
+            }
+        } perform: {}
     }
-}
-
-struct IconRegistryContentView: View {
-    @Binding var selectedIcon: Icon?
-    @StateObject private var iconStore = IconStore(context: PersistenceController.shared.container.viewContext)
-    @Environment(\.managedObjectContext) private var viewContext
     
-    var body: some View {
-        VStack {
-            if iconStore.icons.isEmpty {
-                IconRegistryPreview()
-            } else {
-                List(iconStore.icons, id: \.self, selection: $selectedIcon) { icon in
-                    VStack(alignment: .leading) {
-                        Text(icon.semanticName ?? "Unknown")
-                            .font(.headline)
-                        Text(icon.baseSymbol ?? "No symbol")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+    private func copySymbol() {
+        #if os(macOS)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(suggestion.name, forType: .string)
+        #endif
+        
+        // TODO: Track this action when we implement recent searches
+        
+        // Show feedback
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showingCopyFeedback = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showingCopyFeedback = false
             }
         }
-        .navigationTitle("Registry")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    // Create new icon and select it
-                    let newIcon = Icon(context: viewContext)
-                    newIcon.semanticName = ""
-                    newIcon.baseSymbol = ""
-                    newIcon.dateCreated = Date()
-                    selectedIcon = newIcon
-                } label: {
-                    Image(systemName: "plus")
-                }
-            }
-        }
-        .onAppear {
-            iconStore.updateContext(viewContext)
-        }
     }
 }
 
-struct SettingsContentView: View {
+private struct RecentSearchesList: View {
+    // TODO: Implement recent searches using SwiftData
+    // For now, show empty state
     var body: some View {
-        SettingsView()
+        EmptyRecentView()
     }
 }
 
-// MARK: - Detail Views
-
-struct SearchPlaceholderView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sparkles.magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundColor(.accentColor)
-            Text("Search for Symbols")
-                .font(.title2)
-            Text("Enter a search term to find SF Symbols using AI")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
-        .navigationTitle("Symbol Search")
-    }
-}
-
-struct DefaultDetailView: View {
-    let selectedSidebarItem: MainSidebarItem?
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            if let item = selectedSidebarItem {
-                Image(systemName: item.systemImage)
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
-                Text(item.rawValue)
-                    .font(.title2)
-                Text("Select an item to view details")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            } else {
-                Image(systemName: "sidebar.left")
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
-                Text("Select a category")
-                    .font(.title2)
-            }
-        }
-        .padding()
-    }
-}
-
-// MARK: - Status Views
-
-struct ProcessingView: View {
+private struct EmptyRecentView: View {
     var body: some View {
         VStack(spacing: 16) {
-            HStack(spacing: 4) {
-                ForEach(0..<5) { index in
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 20))
-                        .foregroundColor(.yellow)
-                        .scaleEffect(1.0 + sin(Date().timeIntervalSince1970 * 3 + Double(index) * 0.5) * 0.3)
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 32))
+                .foregroundStyle(.blue.gradient)
+            
+            Text("No Recent Searches")
+                .font(.headline)
+            
+            Text("Search for symbols to see them here with quick access to copy or re-search")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding(24)
+    }
+}
+
+private struct ProcessingView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 6) {
+                ForEach(0..<3) { index in
+                    Circle()
+                        .fill(.blue.gradient)
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(1.0 + sin(Date().timeIntervalSince1970 * 2 + Double(index) * 0.5) * 0.5)
                         .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: UUID())
                 }
             }
             
-            Text("Finding magical symbols...")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .opacity(0.7 + sin(Date().timeIntervalSince1970 * 2) * 0.3)
-                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: UUID())
+            Text("Finding symbols...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
-        .padding()
+        .padding(24)
     }
 }
 
-struct APIKeyErrorView: View {
-    let lastProcessedText: String
+private struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let message: String
     
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title2)
-                .foregroundColor(.orange)
-            Text("Claude API Key Invalid or Issue")
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 32))
+                .foregroundStyle(.secondary)
+            
+            Text(title)
                 .font(.headline)
-            Text("There was an issue with your API key or the service. Please check your key and internet connection.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
+            
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            if !lastProcessedText.isEmpty {
-                Text("Tried for: \"\(lastProcessedText)\"")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-            }
         }
-        .padding()
-    }
-}
-
-struct APIKeyNeededView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "key.slash.fill")
-                .font(.system(size: 32))
-                .foregroundColor(.orange)
-            Text("API Key Needed")
-                .font(.headline)
-            Text("Please enter your Anthropic API key above to start finding symbols.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
-    }
-}
-
-struct ReadyView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sparkles.magnifyingglass")
-                .font(.system(size: 32))
-                .foregroundColor(.accentColor)
-            Text("Ready to Find Symbols")
-                .font(.headline)
-            Text("Enter text in the search bar above, or press ⌃⌥⌘Space to find symbols for selected text in other apps.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding()
-    }
-}
-
-struct IconDetailForm: View {
-    let icon: Icon
-    let iconStore: IconStore
-    @Environment(\.managedObjectContext) private var viewContext
-    @State private var showingPicker = false
-    
-    var body: some View {
-        Form {
-            TextField("Name", text: Binding(
-                get: { icon.semanticName ?? "" },
-                set: { 
-                    icon.semanticName = $0.isEmpty ? nil : $0
-                    icon.dateModified = Date()
-                    try? viewContext.save()
-                    iconStore.updateContext(viewContext)
-                }
-            ))
-            
-            HStack {
-                TextField("Symbol", text: Binding(
-                    get: { icon.baseSymbol ?? "" },
-                    set: { 
-                        icon.baseSymbol = $0.isEmpty ? nil : $0
-                        icon.dateModified = Date()
-                        try? viewContext.save()
-                        iconStore.updateContext(viewContext)
-                    }
-                ))
-                
-                Button("Pick") {
-                    showingPicker = true
-                }
-            }
-        }
-        .navigationTitle("Icon")
-        .sheet(isPresented: $showingPicker) {
-            SFSymbolBrowserView(selectedSymbol: Binding(
-                get: { icon.baseSymbol },
-                set: { 
-                    icon.baseSymbol = $0
-                    icon.dateModified = Date()
-                    try? viewContext.save()
-                    iconStore.updateContext(viewContext)
-                }
-            ))
-        }
-    }
-}
-
-// MARK: - Icon Store
-
-/// Simple IconStore
-class IconStore: ObservableObject {
-    @Published var icons: [Icon] = []
-    @Published var searchText = ""
-    @Published var displayPreference: DisplayPreference = .default
-    
-    // Add symbolConcepts for compatibility with ContentListView and DetailView
-    @Published var symbolConcepts: [SymbolConcept] = []
-    
-    private var viewContext: NSManagedObjectContext
-    
-    init(context: NSManagedObjectContext) {
-        self.viewContext = context
-        fetchIcons()
-        loadSymbolConcepts()
-    }
-    
-    func updateContext(_ context: NSManagedObjectContext) {
-        self.viewContext = context
-        fetchIcons()
-    }
-    
-    private func fetchIcons() {
-        let request: NSFetchRequest<Icon> = Icon.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Icon.semanticName, ascending: true)]
-        
-        do {
-            icons = try viewContext.fetch(request)
-        } catch {
-            print("Error fetching icons: \(error)")
-            icons = []
-        }
-    }
-    
-    private func loadSymbolConcepts() {
-        // Load the same symbol concepts as ModernIconStore
-        symbolConcepts = [
-            // UI Elements
-            SymbolConcept(name: "Delete", primarySymbol: "trash", category: .uiElements),
-            SymbolConcept(name: "Share", primarySymbol: "square.and.arrow.up", category: .uiElements),
-            SymbolConcept(name: "Add", primarySymbol: "plus", category: .uiElements),
-            SymbolConcept(name: "Settings", primarySymbol: "gear", category: .uiElements),
-            SymbolConcept(name: "Search", primarySymbol: "magnifyingglass", category: .uiElements),
-            SymbolConcept(name: "Edit", primarySymbol: "pencil", category: .uiElements),
-            SymbolConcept(name: "View", primarySymbol: "eye", category: .uiElements),
-            
-            // Entity Types  
-            SymbolConcept(name: "User", primarySymbol: "person", category: .entityTypes),
-            SymbolConcept(name: "Project", primarySymbol: "folder", category: .entityTypes),
-            SymbolConcept(name: "Document", primarySymbol: "doc", category: .entityTypes),
-            SymbolConcept(name: "Message", primarySymbol: "message", category: .entityTypes),
-            SymbolConcept(name: "Event", primarySymbol: "calendar", category: .entityTypes),
-            SymbolConcept(name: "Task", primarySymbol: "checkmark.square", category: .entityTypes),
-            SymbolConcept(name: "Contact", primarySymbol: "person.crop.circle", category: .entityTypes),
-        ]
+        .padding(24)
     }
 }
 
 #Preview {
     MainContentView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .modelContainer(SwiftDataContainer.preview)
+        .environment(SFSymbolPackageSettings.shared)
+        .environment(AppSettings.shared)
 }

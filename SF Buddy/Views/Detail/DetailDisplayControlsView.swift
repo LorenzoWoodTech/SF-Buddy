@@ -1,8 +1,9 @@
 import SwiftUI
+import SF_Buddy_Package
 
 struct DetailDisplayControlsView: View {
-    @Binding var gridSize: BrowserGridSize
-    @Binding var selectedRenderingMode: BrowserRenderingMode
+    @Binding var gridSize: SymbolGridSize
+    @Binding var selectedRenderingMode: SymbolRenderingStyle
     @Binding var conceptColor: Color
     @Binding var vegasMode: Bool
     @Binding var showSymbolNames: Bool
@@ -36,37 +37,7 @@ struct DetailDisplayControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showingSizePopover) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Symbol Size")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        ForEach(BrowserGridSize.allCases) { size in
-                            Button {
-                                gridSize = size
-                                showingSizePopover = false
-                            } label: {
-                                HStack {
-                                    Image(systemName: size.iconName)
-                                        .font(.caption)
-                                    Text(size.displayName)
-                                        .font(.caption)
-                                    Spacer()
-                                    if gridSize == size {
-                                        Image(systemName: "checkmark")
-                                            .font(.caption2)
-                                            .foregroundColor(.accentColor)
-                                    }
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .background(gridSize == size ? Color.accentColor.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(8)
-                    .frame(minWidth: 140)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    SymbolGridSizePopover(selectedGridSize: $gridSize)
                 }
 
                 // Rendering mode control
@@ -88,37 +59,7 @@ struct DetailDisplayControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showingRenderingPopover) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Rendering Mode")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        ForEach(BrowserRenderingMode.allCases) { mode in
-                            Button {
-                                selectedRenderingMode = mode
-                                showingRenderingPopover = false
-                            } label: {
-                                HStack {
-                                    Image(systemName: mode.iconName)
-                                        .font(.caption)
-                                    Text(mode.displayName)
-                                        .font(.caption)
-                                    Spacer()
-                                    if selectedRenderingMode == mode {
-                                        Image(systemName: "checkmark")
-                                            .font(.caption2)
-                                            .foregroundColor(.accentColor)
-                                    }
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .background(selectedRenderingMode == mode ? Color.accentColor.opacity(0.1) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(8)
-                    .frame(minWidth: 140)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    SymbolRenderingModePopover(selectedRenderingMode: $selectedRenderingMode)
                 }
 
                 // Color picker control
@@ -169,8 +110,8 @@ struct DetailDisplayControlsView: View {
 
 #if DEBUG
 struct DetailDisplayControlsView_Previews: PreviewProvider {
-    @State static var gridSize: BrowserGridSize = .medium
-    @State static var renderingMode: BrowserRenderingMode = .hierarchical
+    @State static var gridSize: SymbolGridSize = .medium
+    @State static var renderingMode: SymbolRenderingStyle = .hierarchical
     @State static var color: Color = .blue
     @State static var vegasMode = false
     @State static var showNames = true
@@ -190,4 +131,4 @@ struct DetailDisplayControlsView_Previews: PreviewProvider {
             .previewLayout(.sizeThatFits)
     }
 }
-#endif 
+#endif

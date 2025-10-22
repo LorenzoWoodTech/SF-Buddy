@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SF_Buddy_Package
 #if os(macOS)
 import AppKit
 #endif
@@ -35,7 +36,7 @@ class KeyboardShortcutManager: ObservableObject {
                 print("[KeyboardShortcutManager] Shortcut ⌃⌥⌘Space DETECTED!")
                 Task {
                     print("[KeyboardShortcutManager] Task: Calling SFSymbolService.shared.processSelectedText()")
-                    await SFSymbolService.shared.processSelectedText()
+                    await SF_Buddy_Package.SFSymbolService.shared.processSelectedText()
                     print("[KeyboardShortcutManager] Task: SFSymbolService.shared.processSelectedText() finished.")
                 }
             }

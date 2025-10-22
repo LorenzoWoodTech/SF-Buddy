@@ -1,12 +1,13 @@
 import SwiftUI
 import AppKit
+import SF_Buddy_Package
 
 struct DetailSymbolsSection: View {
     let concept: SymbolConcept
     let symbols: [EditableSymbol]
-    let gridSize: BrowserGridSize
-    let selectedRenderingMode: BrowserRenderingMode
-    let showSymbolNames: Bool
+    let gridSize: SymbolGridSize = .medium
+    let selectedRenderingMode: SymbolRenderingStyle = .hierarchical
+    let showSymbolNames: Bool = true
     let onAddSymbol: () -> Void
     let onEditSymbol: (EditableSymbol) -> Void
     let onDeleteSymbol: (EditableSymbol) -> Void
@@ -75,5 +76,3 @@ struct DetailSymbolsSection: View {
         }
     }
 }
-
- 

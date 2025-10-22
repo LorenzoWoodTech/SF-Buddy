@@ -6,10 +6,11 @@
 //
 
 import SwiftUI
+import SF_Buddy_Package
 
 struct ContentView: View {
     @State private var showingSettingsSheet = false
-    @StateObject private var symbolService = SFSymbolService.shared
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
     @State private var showingIconRegistry = false
 
     var body: some View {
@@ -22,6 +23,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingSettingsSheet) {
             SettingsView()
+                .environment(SFSymbolPackageSettings.shared)
+                .environment(SFSymbolVegasSettings.shared)
+                .environment(AppSettings.shared)
                 .frame(minWidth: 380, idealWidth: 400, maxWidth: 450, minHeight: 500, idealHeight: 650, maxHeight: 800)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
@@ -38,7 +42,7 @@ struct ContentView: View {
 }
 
 struct SearchView: View {
-    @StateObject private var symbolService = SFSymbolService.shared
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
     @State private var searchText = ""
     @Binding var showingSettingsSheet: Bool
 
@@ -155,7 +159,7 @@ struct SearchView: View {
                 }
                 .padding()
             } else if !symbolService.suggestedSymbols.isEmpty || !symbolService.invalidSymbolNamesFromClaude.isEmpty {
-                SymbolPickerView()
+                PackageSymbolPickerView()
             } else if !searchText.isEmpty && symbolService.suggestedSymbols.isEmpty && symbolService.invalidSymbolNamesFromClaude.isEmpty && !symbolService.apiKeyMissingOrInvalid && !symbolService.claudeAPIKey.isEmpty {
                 Text("No symbols found for \"\(searchText)\"")
                     .font(.caption)
@@ -190,6 +194,86 @@ struct SearchView: View {
             }
 
             Spacer()
+        }
+    }
+}
+
+// Copy the PackageSymbolPickerView from MainContentView
+private struct PackageSymbolPickerView: View {
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    private let columns = Array(repeating: GridItem(.flexible()), count: 3)
+    
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(symbolService.suggestedSymbols, id: \.id) { suggestion in
+                    PackageSymbolButton(suggestion: suggestion)
+                }
+            }
+            .padding(16)
+        }
+    }
+}
+
+private struct PackageSymbolButton: View {
+    let suggestion: SF_Buddy_Package.SFSymbolSuggestion
+    @State private var isPressed = false
+    @State private var showingCopyFeedback = false
+    
+    var body: some View {
+        Button {
+            copySymbol()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: suggestion.name)
+                    .font(.system(size: 24))
+                    .foregroundStyle(.primary)
+                    .frame(height: 30)
+                
+                Text(suggestion.name)
+                    .font(.caption2)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(8)
+            .frame(width: 80, height: 70)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(.green, lineWidth: showingCopyFeedback ? 2 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: showingCopyFeedback)
+            )
+        }
+        .buttonStyle(.plain)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity) { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressing
+            }
+        } perform: {}
+    }
+    
+    private func copySymbol() {
+        #if os(macOS)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(suggestion.name, forType: .string)
+        #endif
+        
+        // Track the copy action
+        let symbolService = SF_Buddy_Package.SFSymbolService.shared
+        symbolService.trackSymbolAction(symbolName: suggestion.name, action: .copied, searchTerm: symbolService.lastProcessedText)
+        
+        // Show feedback
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showingCopyFeedback = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showingCopyFeedback = false
+            }
         }
     }
 }
@@ -295,6 +379,8 @@ struct FeatureItem: View {
 
 #Preview {
     ContentView()
-        .environmentObject(SFSymbolService.shared)
+        .environmentObject(SF_Buddy_Package.SFSymbolService.shared)
+        .environment(SFSymbolPackageSettings.shared)
+        .environment(SFSymbolVegasSettings.shared)
         .environment(AppSettings.shared)
 }

@@ -6,11 +6,12 @@
 //
 
 import SwiftUI
+import SF_Buddy_Package
 
 struct AISymbolSearchView: View {
     @Binding var selectedSymbol: String?
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var symbolService = SFSymbolService.shared
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
     @State private var searchText = ""
     
     var body: some View {
@@ -107,7 +108,9 @@ struct AISymbolSearchView: View {
             }
             .padding()
             .navigationTitle("AI Search")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -118,7 +121,7 @@ struct AISymbolSearchView: View {
 }
 
 private struct APIKeySetupView: View {
-    @StateObject private var symbolService = SFSymbolService.shared
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
     
     var body: some View {
         VStack(spacing: 12) {
@@ -162,7 +165,7 @@ private struct LoadingView: View {
 
 private struct SymbolResultsView: View {
     @Binding var selectedSymbol: String?
-    @StateObject private var symbolService = SFSymbolService.shared
+    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
     @Environment(\.dismiss) private var dismiss
     
     private let columns = Array(repeating: GridItem(.flexible()), count: 4)
@@ -170,7 +173,7 @@ private struct SymbolResultsView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(symbolService.suggestedSymbols) { suggestion in
+                ForEach(symbolService.suggestedSymbols, id: \.id) { (suggestion: SF_Buddy_Package.SFSymbolSuggestion) in
                     Button {
                         selectedSymbol = suggestion.name
                         dismiss()
@@ -221,6 +224,7 @@ private struct EmptyResultsView: View {
 
 #Preview {
     AISymbolSearchView(selectedSymbol: .constant(nil))
-        .environmentObject(SFSymbolService.shared)
-        .environment(AppSettings.shared)
+        .environmentObject(SF_Buddy_Package.SFSymbolService.shared)
+        .environment(SFSymbolPackageSettings.shared)
+        .environment(SFSymbolVegasSettings.shared)
 }

@@ -1,7 +1,37 @@
 import SwiftUI
 import Foundation
+import SF_Buddy_Package
 
+// MARK: - Sidebar Navigation
 
+enum SidebarItem: String, CaseIterable, Hashable {
+    case sfSymbols = "SF Symbols"
+    
+    var displayName: String { rawValue }
+    
+    var systemImage: String {
+        switch self {
+        case .sfSymbols: return "square.3.layers.3d.middle.filled"
+        }
+    }
+}
+
+// MARK: - Grid Size and Rendering Mode aliases for compatibility
+typealias BrowserGridSize = SymbolGridSize
+typealias BrowserRenderingMode = SymbolRenderingStyle
+
+enum SymbolType: String, CaseIterable {
+    case system = "system"
+    case custom = "custom"
+}
+
+// Stub class for compatibility
+class IconStore: ObservableObject {
+    @Published var symbols: [String] = []
+    @Published var symbolConcepts: [SymbolConcept] = []
+    
+    init() {}
+}
 
 // MARK: - Category Enum
 enum Category: String, CaseIterable {

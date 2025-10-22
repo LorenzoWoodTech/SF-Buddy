@@ -1,5 +1,6 @@
 import SwiftData
 import Foundation
+import SF_Buddy_Package
 
 // MARK: - SwiftData Models
 
@@ -54,6 +55,53 @@ final class SFVariant {
     }
 }
 
+@Model 
+final class RecentSearch {
+    @Attribute(.unique) var searchTerm: String = ""
+    var dateSearched: Date = Date()
+    var selectedSymbol: String?
+    var lastActionDate: Date?
+    var actionType: String? // "copied" or "exported"
+    var timesUsed: Int = 0
+    var actionLog: [SymbolActionRecord] = []
+    
+    init(searchTerm: String, selectedSymbol: String? = nil) {
+        self.searchTerm = searchTerm
+        self.selectedSymbol = selectedSymbol
+        self.dateSearched = Date()
+        self.timesUsed = 0
+        self.actionLog = []
+    }
+    
+    func recordAction(_ action: SymbolAction) {
+        lastActionDate = Date()
+        actionType = action.rawValue
+        timesUsed += 1
+        actionLog.append(SymbolActionRecord(action: action, date: Date()))
+    }
+}
+
+// MARK: - Legacy Support (keeping old SymbolAction for compatibility)
+
+enum LegacySymbolAction: String, CaseIterable {
+    case copied = "copied"
+    case exported = "exported"
+    
+    var displayName: String {
+        switch self {
+        case .copied: return "Copied"
+        case .exported: return "Exported"
+        }
+    }
+    
+    var systemImage: String {
+        switch self {
+        case .copied: return "doc.on.clipboard"
+        case .exported: return "square.and.arrow.up"
+        }
+    }
+}
+
 // MARK: - SwiftData Container Configuration
 
 struct SwiftDataContainer {
@@ -61,7 +109,8 @@ struct SwiftDataContainer {
         let schema = Schema([
             SFIcon.self,
             SFTag.self,
-            SFVariant.self
+            SFVariant.self,
+            RecentSearch.self
         ])
         
         let modelConfiguration = ModelConfiguration(
@@ -81,7 +130,8 @@ struct SwiftDataContainer {
         let schema = Schema([
             SFIcon.self,
             SFTag.self,
-            SFVariant.self
+            SFVariant.self,
+            RecentSearch.self
         ])
         
         let modelConfiguration = ModelConfiguration(
@@ -147,10 +197,24 @@ struct SwiftDataContainer {
         // Insert variant
         context.insert(homeSidebarVariant)
         
+        // Create sample recent searches
+        let searchHome = RecentSearch(searchTerm: "home screen icon", selectedSymbol: "house.fill")
+        searchHome.recordAction(.copied)
+        
+        let searchUser = RecentSearch(searchTerm: "user profile", selectedSymbol: "person.circle")
+        searchUser.recordAction(.exported)
+        
+        let searchSettings = RecentSearch(searchTerm: "app settings", selectedSymbol: "gear")
+        searchSettings.recordAction(.copied)
+        
+        [searchHome, searchUser, searchSettings].forEach { search in
+            context.insert(search)
+        }
+        
         do {
             try context.save()
         } catch {
             print("Failed to save preview data: \(error)")
         }
     }
-} 
+}

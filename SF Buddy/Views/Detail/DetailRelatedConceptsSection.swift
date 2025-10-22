@@ -62,4 +62,27 @@ struct DetailRelatedConceptsSection: View {
             }
         }
     }
-} 
+}
+
+// Stub implementation for compatibility
+struct RelatedConceptCard: View {
+    let concept: SymbolConcept
+    let onTap: () -> Void
+    let onRemove: () -> Void
+    
+    var body: some View {
+        VStack {
+            Image(systemName: concept.primarySymbol)
+                .font(.title3)
+            Text(concept.name)
+                .font(.caption2)
+                .lineLimit(1)
+        }
+        .frame(width: 80, height: 80)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .onTapGesture(perform: onTap)
+        .contextMenu {
+            Button("Remove", role: .destructive, action: onRemove)
+        }
+    }
+}

@@ -6,10 +6,11 @@
 //
 
 import SwiftUI
+import SwiftData
+import Combine
+import SF_Buddy_Package
 #if os(macOS)
 import AppKit
-import Carbon
-import Combine
 #endif
 
 @main
@@ -17,17 +18,24 @@ struct SF_BuddyApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
-    
-    let persistenceController = PersistenceController.shared
+
+    // Make the service available to the whole app
+    @StateObject private var symbolService = SFSymbolService.shared
 
     var body: some Scene {
         #if os(macOS)
-        // Main app window for macOS - Three column split view
+        // Main app window for macOS - Simplified for menu bar focus
         WindowGroup("SF Buddy") {
             MainContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(SFSymbolService.shared)
+                .modelContainer(SwiftDataContainer.shared)
+                .environment(SFSymbolPackageSettings.shared)
+                .environment(SFSymbolVegasSettings.shared)
                 .environment(AppSettings.shared)
+                .onAppear {
+                    Task { @MainActor in
+                        setupSymbolServiceCallback()
+                    }
+                }
         }
         .commands {
             SidebarCommands()
@@ -35,18 +43,57 @@ struct SF_BuddyApp: App {
         
         Settings {
             SettingsView()
-                .environmentObject(SFSymbolService.shared)
+                .environment(SFSymbolPackageSettings.shared)
+                .environment(SFSymbolVegasSettings.shared)
                 .environment(AppSettings.shared)
         }
         #else
         // iOS/iPadOS: Split view for iPad, standard for iPhone
         WindowGroup {
             MainContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(SFSymbolService.shared)
+                .modelContainer(SwiftDataContainer.shared)
+                .environment(SFSymbolPackageSettings.shared)
+                .environment(SFSymbolVegasSettings.shared)
                 .environment(AppSettings.shared)
+                .onAppear {
+                    Task { @MainActor in
+                        setupSymbolServiceCallback()
+                    }
+                }
         }
         #endif
+    }
+    
+    @MainActor
+    private func setupSymbolServiceCallback() {
+        let context = SwiftDataContainer.shared.mainContext
+        
+        symbolService.trackSymbolActionCallback = { symbolName, action, searchTerm in
+            Task { @MainActor in
+                // Get or create recent search
+                let descriptor = FetchDescriptor<RecentSearch>(
+                    predicate: #Predicate { $0.searchTerm == searchTerm }
+                )
+                
+                do {
+                    let existingSearches = try context.fetch(descriptor)
+                    let search: RecentSearch
+                    
+                    if let existingSearch = existingSearches.first {
+                        search = existingSearch
+                        search.selectedSymbol = symbolName
+                    } else {
+                        search = RecentSearch(searchTerm: searchTerm, selectedSymbol: symbolName)
+                        context.insert(search)
+                    }
+                    
+                    search.recordAction(action)
+                    try context.save()
+                } catch {
+                    print("Failed to track symbol action: \(error)")
+                }
+            }
+        }
     }
 }
 
@@ -57,6 +104,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var keyboardShortcutManager: KeyboardShortcutManager?
     private var appSettings = AppSettings.shared
     private var cancellables: Set<AnyCancellable> = []
+    private let symbolService = SFSymbolService.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("[AppDelegate] applicationDidFinishLaunching started.")
@@ -68,6 +116,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("[AppDelegate] Accessibility check done.")
         
         setupStatusItemIfNeeded()
+        
+        Task { @MainActor in
+            setupSymbolServiceCallback()
+        }
 
         // Note: With @Observable, we need a different approach for observing changes
         NotificationCenter.default.addObserver(self, selector: #selector(setupStatusItemIfNeeded), name: .appSettingShowInMenuBarChanged, object: nil)
@@ -80,6 +132,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("[AppDelegate] Notification observer added for showSymbolPicker.")
         
         print("[AppDelegate] applicationDidFinishLaunching finished.")
+    }
+    
+    @MainActor
+    private func setupSymbolServiceCallback() {
+        let context = SwiftDataContainer.shared.mainContext
+        
+        symbolService.trackSymbolActionCallback = { symbolName, action, searchTerm in
+            Task { @MainActor in
+                // Get or create recent search
+                let descriptor = FetchDescriptor<RecentSearch>(
+                    predicate: #Predicate { $0.searchTerm == searchTerm }
+                )
+                
+                do {
+                    let existingSearches = try context.fetch(descriptor)
+                    let search: RecentSearch
+                    
+                    if let existingSearch = existingSearches.first {
+                        search = existingSearch
+                        search.selectedSymbol = symbolName
+                    } else {
+                        search = RecentSearch(searchTerm: searchTerm, selectedSymbol: symbolName)
+                        context.insert(search)
+                    }
+                    
+                    search.recordAction(action)
+                    try context.save()
+                } catch {
+                    print("Failed to track symbol action: \(error)")
+                }
+            }
+        }
     }
 
     @MainActor
@@ -122,12 +206,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if popover == nil {
                 print("[AppDelegate] togglePopover: Creating new popover.")
                 popover = NSPopover()
-                popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environment(AppSettings.shared))
+                popover?.contentViewController = NSHostingController(
+                    rootView: MainContentView()
+                        .modelContainer(SwiftDataContainer.shared)
+                        .environment(SFSymbolPackageSettings.shared)
+                        .environment(SFSymbolVegasSettings.shared)
+                        .environment(AppSettings.shared)
+                )
                 popover?.behavior = .transient
-                popover?.contentSize = NSSize(width: 450, height: 600)
             }
-            popover?.contentSize = NSSize(width: 450, height: 600)
-
+            popover?.contentSize = NSSize(width: 400, height: 500)
             popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover?.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
         }
@@ -154,11 +242,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if self.popover == nil {
                 print("[AppDelegate] handleShowSymbolPicker: Creating new popover.")
                 self.popover = NSPopover()
-                self.popover?.contentViewController = NSHostingController(rootView: ContentView().environmentObject(SFSymbolService.shared).environment(AppSettings.shared))
+                self.popover?.contentViewController = NSHostingController(
+                    rootView: MainContentView()
+                        .modelContainer(SwiftDataContainer.shared)
+                        .environment(SFSymbolPackageSettings.shared)
+                        .environment(SFSymbolVegasSettings.shared)
+                        .environment(AppSettings.shared)
+                )
                 self.popover?.behavior = .transient
-                self.popover?.contentSize = NSSize(width: 450, height: 600)
             }
-            self.popover?.contentSize = NSSize(width: 450, height: 600)
+            self.popover?.contentSize = NSSize(width: 400, height: 500)
 
             if !(self.popover?.isShown ?? false) {
                 print("[AppDelegate] handleShowSymbolPicker: Showing popover.")

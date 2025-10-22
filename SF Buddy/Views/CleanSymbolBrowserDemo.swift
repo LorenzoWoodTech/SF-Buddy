@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SF_Buddy_Package
 
 struct CleanSymbolBrowserDemo: View {
     @State private var selectedSymbol: String?

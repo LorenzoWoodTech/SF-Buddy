@@ -6,43 +6,39 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct IconInspectorView: View {
-    let icon: Icon
+    let icon: SFIcon
     
     var body: some View {
         Form {
             Section("Details") {
-                LabeledContent("Semantic Name", value: icon.semanticName ?? "Unknown")
-                LabeledContent("Base Symbol", value: icon.baseSymbol ?? "Unknown")
+                LabeledContent("Semantic Name", value: icon.semanticName.isEmpty ? "Unknown" : icon.semanticName)
+                LabeledContent("Base Symbol", value: icon.baseSymbol.isEmpty ? "Unknown" : icon.baseSymbol)
                 LabeledContent("Type", value: icon.isCustomAsset ? "Custom Asset" : "SF Symbol")
                 
-                if let dateCreated = icon.dateCreated {
-                    LabeledContent("Created", value: DateFormatter.shortDate.string(from: dateCreated))
-                }
-                
-                if let dateModified = icon.dateModified {
-                    LabeledContent("Modified", value: DateFormatter.shortDate.string(from: dateModified))
-                }
+                LabeledContent("Created", value: DateFormatter.shortDate.string(from: icon.dateCreated))
+                LabeledContent("Modified", value: DateFormatter.shortDate.string(from: icon.dateModified))
             }
             
-            if let tags = icon.tags as? Set<Tag>, !tags.isEmpty {
+            if !icon.tags.isEmpty {
                 Section("Tags") {
-                    ForEach(Array(tags), id: \.self) { tag in
-                        Label(tag.name ?? "Unknown", systemImage: "tag")
+                    ForEach(icon.tags, id: \.name) { tag in
+                        Label(tag.name.isEmpty ? "Unknown" : tag.name, systemImage: "tag")
                             .foregroundStyle(tagColor(for: tag))
                     }
                 }
             }
             
-            if let variants = icon.variants as? Set<Variant>, !variants.isEmpty {
+            if !icon.variants.isEmpty {
                 Section("Variants") {
-                    ForEach(Array(variants), id: \.self) { variant in
+                    ForEach(icon.variants, id: \.symbolName) { variant in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(variant.symbolName ?? "Unknown")
+                            Text(variant.symbolName.isEmpty ? "Unknown" : variant.symbolName)
                                 .font(.body)
-                            if let context = variant.context, !context.isEmpty {
-                                Text(context)
+                            if !variant.context.isEmpty {
+                                Text(variant.context)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -54,7 +50,7 @@ struct IconInspectorView: View {
         }
         .navigationTitle("Inspector")
         #if os(macOS)
-        .navigationSubtitle(icon.semanticName ?? "Unknown Icon")
+        .navigationSubtitle(icon.semanticName.isEmpty ? "Unknown Icon" : icon.semanticName)
         #else
         .navigationBarTitleDisplayMode(.large)
         #endif
@@ -70,7 +66,7 @@ struct IconInspectorView: View {
         }
     }
     
-    private func tagColor(for tag: Tag) -> Color {
+    private func tagColor(for tag: SFTag) -> Color {
         guard let colorString = tag.color else { return .secondary }
         
         switch colorString.lowercased() {
@@ -97,7 +93,7 @@ extension DateFormatter {
 
 #Preview {
     NavigationView {
-        IconInspectorView(icon: Icon()) // This would need a proper preview icon
+        IconInspectorView(icon: SFIcon(semanticName: "home", baseSymbol: "house.fill"))
     }
-    .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    .modelContainer(SwiftDataContainer.preview)
 }
