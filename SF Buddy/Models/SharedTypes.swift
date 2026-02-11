@@ -1,6 +1,6 @@
 import SwiftUI
 import Foundation
-import SF_Buddy_Package
+import SF_Buddy_Kit
 
 // MARK: - Sidebar Navigation
 

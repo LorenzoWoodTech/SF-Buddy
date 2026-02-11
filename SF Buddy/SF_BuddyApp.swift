@@ -24,9 +24,9 @@ struct SF_BuddyApp: App {
 
     var body: some Scene {
         #if os(macOS)
-        // Main app window for macOS - Simplified for menu bar focus
+        // Main app window for macOS - Full featured interface
         WindowGroup("SF Buddy") {
-            MainContentView()
+            ContentView()
                 .modelContainer(SwiftDataContainer.shared)
                 .environment(SFSymbolPackageSettings.shared)
                 .environment(SFSymbolVegasSettings.shared)
@@ -39,13 +39,6 @@ struct SF_BuddyApp: App {
         }
         .commands {
             SidebarCommands()
-        }
-        
-        Settings {
-            SettingsView()
-                .environment(SFSymbolPackageSettings.shared)
-                .environment(SFSymbolVegasSettings.shared)
-                .environment(AppSettings.shared)
         }
         #else
         // iOS/iPadOS: Split view for iPad, standard for iPhone
@@ -215,7 +208,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 )
                 popover?.behavior = .transient
             }
-            popover?.contentSize = NSSize(width: 400, height: 500)
+            popover?.contentSize = NSSize(width: 380, height: 480)
             popover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover?.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
         }
@@ -251,7 +244,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 )
                 self.popover?.behavior = .transient
             }
-            self.popover?.contentSize = NSSize(width: 400, height: 500)
+            self.popover?.contentSize = NSSize(width: 380, height: 480)
 
             if !(self.popover?.isShown ?? false) {
                 print("[AppDelegate] handleShowSymbolPicker: Showing popover.")

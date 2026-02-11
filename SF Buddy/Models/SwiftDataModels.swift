@@ -1,6 +1,6 @@
 import SwiftData
 import Foundation
-import SF_Buddy_Package
+import SF_Buddy_Kit
 
 // MARK: - SwiftData Models
 
