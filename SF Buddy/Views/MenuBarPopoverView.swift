@@ -7,11 +7,11 @@
 
 import SwiftUI
 import SwiftData
-import SF_Buddy_Package
+import SFBuddyKit
 
 struct MenuBarPopoverView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    @StateObject private var symbolService = SFBuddyKit.SFSymbolService.shared
     @State private var searchText = ""
     @State private var showingAPIKeyField = false
     
@@ -81,7 +81,7 @@ struct MenuBarPopoverView: View {
 private struct CompactHeaderView: View {
     @Binding var searchText: String
     @Binding var showingAPIKeyField: Bool
-    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    @StateObject private var symbolService = SFBuddyKit.SFSymbolService.shared
     
     var body: some View {
         VStack(spacing: 12) {
@@ -178,7 +178,7 @@ private struct CompactHeaderView: View {
 // MARK: - API Key Prompt
 private struct APIKeyPromptView: View {
     @Binding var showingAPIKeyField: Bool
-    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    @StateObject private var symbolService = SFBuddyKit.SFSymbolService.shared
     @State private var tempAPIKey = ""
     
     var body: some View {
@@ -259,7 +259,7 @@ private struct ProcessingView: View {
 
 // MARK: - Symbol Results Grid
 private struct SymbolResultsGrid: View {
-    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    @StateObject private var symbolService = SFBuddyKit.SFSymbolService.shared
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
     
     var body: some View {
@@ -361,7 +361,7 @@ private struct RecentSearchesView: View {
 // MARK: - Recent Search Row
 private struct RecentSearchRow: View {
     let search: RecentSearch
-    @StateObject private var symbolService = SF_Buddy_Package.SFSymbolService.shared
+    @StateObject private var symbolService = SFBuddyKit.SFSymbolService.shared
     
     var body: some View {
         Button {

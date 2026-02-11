@@ -2,11 +2,11 @@
 //  AppSettings.swift
 //  SF Buddy
 //
-//  Bridge to package settings with app-specific additions
+//  App-specific settings with bridge to package settings
 //
 
 import SwiftUI
-import SF_Buddy_Package
+import SFBuddyKit
 
 @Observable
 @MainActor
@@ -14,6 +14,7 @@ class AppSettings {
     static let shared = AppSettings()
 
     private static let userDefaultsShowInMenuBarKey = "ShowInMenuBar"
+    private static let vegasChaosModeLKey = "VegasChaosMode"
 
     var showInMenuBar: Bool {
         didSet {
@@ -24,7 +25,7 @@ class AppSettings {
         }
     }
     
-    // Bridge to package settings
+    // Bridge to package settings for Claude AI
     var symbolCount: Int {
         get { SFSymbolPackageSettings.shared.symbolCount }
         set { SFSymbolPackageSettings.shared.symbolCount = newValue }
@@ -35,50 +36,55 @@ class AppSettings {
         set { SFSymbolPackageSettings.shared.selectedModel = newValue }
     }
     
-    // Bridge to vegas settings
+    var modelProvider: ModelProvider {
+        get { SFSymbolPackageSettings.shared.modelProvider }
+        set { SFSymbolPackageSettings.shared.modelProvider = newValue }
+    }
+    
+    // Bridge to package Vegas settings
     var vegasAnimationSpeed: Double {
-        get { SFSymbolVegasSettings.shared.vegasAnimationSpeed }
-        set { SFSymbolVegasSettings.shared.vegasAnimationSpeed = newValue }
+        get { VegasSettings.shared.vegasAnimationSpeed }
+        set { VegasSettings.shared.vegasAnimationSpeed = newValue }
     }
     
     var vegasColorCycleSpeed: Double {
-        get { SFSymbolVegasSettings.shared.vegasColorCycleSpeed }
-        set { SFSymbolVegasSettings.shared.vegasColorCycleSpeed = newValue }
+        get { VegasSettings.shared.vegasColorCycleSpeed }
+        set { VegasSettings.shared.vegasColorCycleSpeed = newValue }
     }
     
     var vegasIntensity: Double {
-        get { SFSymbolVegasSettings.shared.vegasIntensity }
-        set { SFSymbolVegasSettings.shared.vegasIntensity = newValue }
+        get { VegasSettings.shared.vegasIntensity }
+        set { VegasSettings.shared.vegasIntensity = newValue }
     }
     
     var vegasRotationEnabled: Bool {
-        get { SFSymbolVegasSettings.shared.vegasRotationEnabled }
-        set { SFSymbolVegasSettings.shared.vegasRotationEnabled = newValue }
+        get { VegasSettings.shared.vegasRotationEnabled }
+        set { VegasSettings.shared.vegasRotationEnabled = newValue }
     }
 
     var vegasRandomnessLevel: Double {
-        get { SFSymbolVegasSettings.shared.vegasRandomnessLevel }
-        set { SFSymbolVegasSettings.shared.vegasRandomnessLevel = newValue }
+        get { VegasSettings.shared.vegasRandomnessLevel }
+        set { VegasSettings.shared.vegasRandomnessLevel = newValue }
     }
     
     var vegasScaleIntensity: Double {
-        get { SFSymbolVegasSettings.shared.vegasScaleIntensity }
-        set { SFSymbolVegasSettings.shared.vegasScaleIntensity = newValue }
+        get { VegasSettings.shared.vegasScaleIntensity }
+        set { VegasSettings.shared.vegasScaleIntensity = newValue }
     }
     
     var vegasMovementIntensity: Double {
-        get { SFSymbolVegasSettings.shared.vegasMovementIntensity }
-        set { SFSymbolVegasSettings.shared.vegasMovementIntensity = newValue }
+        get { VegasSettings.shared.vegasMovementIntensity }
+        set { VegasSettings.shared.vegasMovementIntensity = newValue }
     }
     
-    var vegasChaosMode: Bool = false {
+    var vegasChaosMode: Bool {
         didSet {
-            UserDefaults.standard.set(vegasChaosMode, forKey: "VegasChaosMode")
+            UserDefaults.standard.set(vegasChaosMode, forKey: AppSettings.vegasChaosModeLKey)
         }
     }
 
     func triggerVegasChaos() {
-        SFSymbolVegasSettings.shared.triggerVegasChaos()
+        VegasSettings.shared.triggerVegasChaos()
         vegasChaosMode.toggle()
         // Briefly enable chaos mode to trigger randomization in animations
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -87,14 +93,14 @@ class AppSettings {
     }
 
     func randomizeVegas() {
-        SFSymbolVegasSettings.shared.randomizeVegas()
+        VegasSettings.shared.randomizeVegas()
     }
 
     private init() {
         self.showInMenuBar = UserDefaults.standard.object(forKey: AppSettings.userDefaultsShowInMenuBarKey) as? Bool ?? true
-        self.vegasChaosMode = UserDefaults.standard.object(forKey: "VegasChaosMode") as? Bool ?? false
+        self.vegasChaosMode = UserDefaults.standard.object(forKey: AppSettings.vegasChaosModeLKey) as? Bool ?? false
         
-        print("[AppSettings] Initialized as bridge to package settings with @Observable")
+        print("[AppSettings] Initialized as bridge to SFBuddyKit package settings")
     }
 }
 

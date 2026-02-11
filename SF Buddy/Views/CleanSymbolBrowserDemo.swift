@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import SF_Buddy_Package
+import SFBuddyKit
 
 struct CleanSymbolBrowserDemo: View {
     @State private var selectedSymbol: String?
@@ -51,19 +51,6 @@ struct CleanSymbolBrowserDemo: View {
             // Action Buttons
             VStack(spacing: 16) {
                 Button {
-                    showingBrowser = true
-                } label: {
-                    HStack {
-                        Image(systemName: "square.grid.3x3")
-                        Text("Browse All Symbols")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.blue.gradient, in: RoundedRectangle(cornerRadius: 10))
-                    .foregroundStyle(.white)
-                }
-                
-                Button {
                     showingAISearch = true
                 } label: {
                     HStack {
@@ -86,7 +73,6 @@ struct CleanSymbolBrowserDemo: View {
                     .foregroundStyle(.secondary)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("• Comprehensive symbol browser")
                     Text("• AI-powered symbol suggestions")
                     Text("• Clean selection interface")
                     Text("• Minimal configuration")
@@ -97,9 +83,6 @@ struct CleanSymbolBrowserDemo: View {
         }
         .padding()
         .frame(maxWidth: 600)
-        .sheet(isPresented: $showingBrowser) {
-            SFSymbolBrowserView(selectedSymbol: $selectedSymbol)
-        }
         .sheet(isPresented: $showingAISearch) {
             AISymbolSearchView(selectedSymbol: $selectedSymbol)
         }
@@ -108,6 +91,6 @@ struct CleanSymbolBrowserDemo: View {
 
 #Preview {
     CleanSymbolBrowserDemo()
-        .environmentObject(SFSymbolService.shared)
+        .environment(SFSymbolPackageSettings.shared)
         .environment(AppSettings.shared)
 }

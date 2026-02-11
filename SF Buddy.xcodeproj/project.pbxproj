@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		ED2CA7042DFD3ABC002D3DF7 /* SFSafeSymbols in Frameworks */ = {isa = PBXBuildFile; productRef = ED2CA7032DFD3ABC002D3DF7 /* SFSafeSymbols */; };
+		EDB9C9752F3C172900556A4D /* SFBuddyKit in Frameworks */ = {isa = PBXBuildFile; productRef = EDB9C9742F3C172900556A4D /* SFBuddyKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				ED2CA7042DFD3ABC002D3DF7 /* SFSafeSymbols in Frameworks */,
+				EDB9C9752F3C172900556A4D /* SFBuddyKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +86,7 @@
 			name = "SF Buddy";
 			packageProductDependencies = (
 				ED2CA7032DFD3ABC002D3DF7 /* SFSafeSymbols */,
+				EDB9C9742F3C172900556A4D /* SFBuddyKit */,
 			);
 			productName = "SF Buddy";
 			productReference = ED3D318C2DE5934700FB6E80 /* SF Buddy.app */;
@@ -384,6 +387,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = ED2CA7022DFD3ABC002D3DF7 /* XCRemoteSwiftPackageReference "SFSafeSymbols" */;
 			productName = SFSafeSymbols;
+		};
+		EDB9C9742F3C172900556A4D /* SFBuddyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SFBuddyKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

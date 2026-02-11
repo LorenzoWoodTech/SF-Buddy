@@ -1,6 +1,11 @@
 import SwiftUI
-import SF_Buddy_Package
+import SFBuddyKit
 
+// MARK: - UNUSED FILE - Kept for reference only
+// This file is not currently used in the app. Commenting out to fix build.
+// The popovers (SymbolGridSizePopover, SymbolRenderingModePopover) don't exist.
+
+/*
 struct DetailDisplayControlsView: View {
     @Binding var gridSize: SymbolGridSize
     @Binding var selectedRenderingMode: SymbolRenderingStyle
@@ -37,7 +42,7 @@ struct DetailDisplayControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showingSizePopover) {
-                    SymbolGridSizePopover(selectedGridSize: $gridSize)
+                    // SymbolGridSizePopover(selectedGridSize: $gridSize)
                 }
 
                 // Rendering mode control
@@ -59,7 +64,7 @@ struct DetailDisplayControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showingRenderingPopover) {
-                    SymbolRenderingModePopover(selectedRenderingMode: $selectedRenderingMode)
+                    // SymbolRenderingModePopover(selectedRenderingMode: $selectedRenderingMode)
                 }
 
                 // Color picker control
@@ -107,28 +112,4 @@ struct DetailDisplayControlsView: View {
         }
     }
 }
-
-#if DEBUG
-struct DetailDisplayControlsView_Previews: PreviewProvider {
-    @State static var gridSize: SymbolGridSize = .medium
-    @State static var renderingMode: SymbolRenderingStyle = .hierarchical
-    @State static var color: Color = .blue
-    @State static var vegasMode = false
-    @State static var showNames = true
-    @State static var showSize = false
-    @State static var showRendering = false
-    @State static var showColor = false
-    static var previews: some View {
-        DetailDisplayControlsView(gridSize: $gridSize,
-                                   selectedRenderingMode: $renderingMode,
-                                   conceptColor: $color,
-                                   vegasMode: $vegasMode,
-                                   showSymbolNames: $showNames,
-                                   showingSizePopover: $showSize,
-                                   showingRenderingPopover: $showRendering,
-                                   showingColorPicker: $showColor)
-            .padding()
-            .previewLayout(.sizeThatFits)
-    }
-}
-#endif
+*/

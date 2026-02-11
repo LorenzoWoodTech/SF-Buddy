@@ -1,6 +1,6 @@
 import SwiftData
 import Foundation
-import SF_Buddy_Kit
+import SFBuddyKit
 
 // MARK: - SwiftData Models
 
@@ -78,27 +78,6 @@ final class RecentSearch {
         actionType = action.rawValue
         timesUsed += 1
         actionLog.append(SymbolActionRecord(action: action, date: Date()))
-    }
-}
-
-// MARK: - Legacy Support (keeping old SymbolAction for compatibility)
-
-enum LegacySymbolAction: String, CaseIterable {
-    case copied = "copied"
-    case exported = "exported"
-    
-    var displayName: String {
-        switch self {
-        case .copied: return "Copied"
-        case .exported: return "Exported"
-        }
-    }
-    
-    var systemImage: String {
-        switch self {
-        case .copied: return "doc.on.clipboard"
-        case .exported: return "square.and.arrow.up"
-        }
     }
 }
 

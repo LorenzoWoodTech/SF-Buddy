@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import SF_Buddy_Package
 
 struct DetailSymbolsSection: View {
     let concept: SymbolConcept

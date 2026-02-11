@@ -1,6 +1,9 @@
 import SwiftUI
 import Foundation
-import SF_Buddy_Kit
+import SFBuddyKit
+
+// Import SymbolAction and SymbolActionRecord from SFBuddyKit
+// (No need to redefine them here)
 
 // MARK: - Sidebar Navigation
 
@@ -17,8 +20,11 @@ enum SidebarItem: String, CaseIterable, Hashable {
 }
 
 // MARK: - Grid Size and Rendering Mode aliases for compatibility
-typealias BrowserGridSize = SymbolGridSize
-typealias BrowserRenderingMode = SymbolRenderingStyle
+typealias BrowserGridSize = SFBuddyKit.SymbolGridSize
+typealias BrowserRenderingMode = SFBuddyKit.SymbolRenderingMode
+
+typealias SymbolGridSize = SFBuddyKit.SymbolGridSize
+typealias SymbolRenderingStyle = SFBuddyKit.SymbolRenderingMode
 
 enum SymbolType: String, CaseIterable {
     case system = "system"
@@ -59,8 +65,9 @@ struct SymbolConcept: Identifiable, Hashable {
     }
 }
 
-// MARK: - Symbol Variant
-struct SymbolVariant: Hashable {
+// MARK: - Symbol Variant (local app-specific version)
+// Note: SFBuddyKit has its own SymbolVariant - this one is for SwiftData
+struct LocalSymbolVariant: Hashable {
     let symbolName: String?
     let context: String?
     
