@@ -193,8 +193,10 @@ private struct SymbolResultsView: View {
                         .padding()
                         .frame(height: 80)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                        .contentShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .buttonStyle(.plain)
+                    .focusable(false)
                 }
             }
             .padding()

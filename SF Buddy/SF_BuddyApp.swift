@@ -82,7 +82,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 print("[AppDelegate] Creating status item as per settings.")
                 statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
                 if let button = statusItem?.button {
-                    button.image = NSImage(systemSymbolName: "mosaic", accessibilityDescription: "SF Buddy")
+                    button.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "SF Buddy")
                     button.action = #selector(togglePopover)
                     button.target = self
                     print("[AppDelegate] Status item button configured.")

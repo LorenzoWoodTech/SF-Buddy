@@ -168,7 +168,7 @@ private let registry: [AppIcon : Definition] = [
     
     // DATABASE
     .database       : .init(base: "cylinder.split.1x2"),
-    .rigDesigns     : .init(base: "rectangle.3.group"),
+    .rigDesigns     : .init(base: "hammer.fill"),
     .templates      : .init(base: "doc.on.doc"),
     .documents      : .init(base: "doc"),
     .files          : .init(base: "folder"),
