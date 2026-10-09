@@ -7,12 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ED096C9B2F41CC9C002AE8A3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED096C7B2F41CC9C002AE8A3 /* Assets.xcassets */; };
 		ED2CA7042DFD3ABC002D3DF7 /* SFSafeSymbols in Frameworks */ = {isa = PBXBuildFile; productRef = ED2CA7032DFD3ABC002D3DF7 /* SFSafeSymbols */; };
-		EDB9C9752F3C172900556A4D /* SFBuddyKit in Frameworks */ = {isa = PBXBuildFile; productRef = EDB9C9742F3C172900556A4D /* SFBuddyKit */; };
+		ED840A912F41D9A600EEC6E9 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = ED840A902F41D9A600EEC6E9 /* AppIcon.icon */; };
+		EDE6B5702F3CB5EE001C02B5 /* SFBuddyKit in Frameworks */ = {isa = PBXBuildFile; productRef = EDE6B56F2F3CB5EE001C02B5 /* SFBuddyKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		ED096C7B2F41CC9C002AE8A3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ED3D318C2DE5934700FB6E80 /* SF Buddy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SF Buddy.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED840A902F41D9A600EEC6E9 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -41,8 +45,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EDE6B5702F3CB5EE001C02B5 /* SFBuddyKit in Frameworks */,
 				ED2CA7042DFD3ABC002D3DF7 /* SFSafeSymbols in Frameworks */,
-				EDB9C9752F3C172900556A4D /* SFBuddyKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,6 +56,8 @@
 		ED3D31832DE5934700FB6E80 = {
 			isa = PBXGroup;
 			children = (
+				ED840A902F41D9A600EEC6E9 /* AppIcon.icon */,
+				ED096C7B2F41CC9C002AE8A3 /* Assets.xcassets */,
 				ED3D318E2DE5934700FB6E80 /* SF Buddy */,
 				ED3D318D2DE5934700FB6E80 /* Products */,
 			);
@@ -86,7 +92,7 @@
 			name = "SF Buddy";
 			packageProductDependencies = (
 				ED2CA7032DFD3ABC002D3DF7 /* SFSafeSymbols */,
-				EDB9C9742F3C172900556A4D /* SFBuddyKit */,
+				EDE6B56F2F3CB5EE001C02B5 /* SFBuddyKit */,
 			);
 			productName = "SF Buddy";
 			productReference = ED3D318C2DE5934700FB6E80 /* SF Buddy.app */;
@@ -118,6 +124,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				ED2CA7022DFD3ABC002D3DF7 /* XCRemoteSwiftPackageReference "SFSafeSymbols" */,
+				EDE6B56E2F3CB5EE001C02B5 /* XCLocalSwiftPackageReference "../../Frameworks/SF-Buddy-Kit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = ED3D318D2DE5934700FB6E80 /* Products */;
@@ -134,6 +141,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED096C9B2F41CC9C002AE8A3 /* Assets.xcassets in Resources */,
+				ED840A912F41D9A600EEC6E9 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -371,6 +380,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		EDE6B56E2F3CB5EE001C02B5 /* XCLocalSwiftPackageReference "../../Frameworks/SF-Buddy-Kit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../SF-Buddy-Kit";
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		ED2CA7022DFD3ABC002D3DF7 /* XCRemoteSwiftPackageReference "SFSafeSymbols" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -388,7 +404,7 @@
 			package = ED2CA7022DFD3ABC002D3DF7 /* XCRemoteSwiftPackageReference "SFSafeSymbols" */;
 			productName = SFSafeSymbols;
 		};
-		EDB9C9742F3C172900556A4D /* SFBuddyKit */ = {
+		EDE6B56F2F3CB5EE001C02B5 /* SFBuddyKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SFBuddyKit;
 		};

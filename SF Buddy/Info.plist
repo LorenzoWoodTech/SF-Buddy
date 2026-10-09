@@ -9,5 +9,8 @@
 	<!-- ADD: Application is agent (UIElement) -->
 	<key>LSUIElement</key>
 	<true/>
+	<!-- App Store Category -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
 </dict>
 </plist>
